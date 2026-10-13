@@ -52,7 +52,7 @@ The easiest way to get started is to download the latest pre-built executable fr
 If you prefer to build from source:
 
 **Prerequisites:**
-- [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) or later
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) or later
 
 **Using the build script (Windows):**
 ```powershell
