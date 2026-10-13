@@ -26,6 +26,12 @@ public record RungInfo
     public string? Text { get; set; }
 
     /// <summary>
+    /// Online-edit state of the rung, if the source records one (Rockwell: N = normal;
+    /// I, D, R, e, er, d, rR, rI, rN = pending or test edits). Null when unknown.
+    /// </summary>
+    public string? EditState { get; set; }
+
+    /// <summary>
     /// Additional rung properties.
     /// </summary>
     public Dictionary<string, string> Properties { get; set; } = new();
