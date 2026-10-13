@@ -1,0 +1,543 @@
+﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<RSLogix5000Content SchemaRevision="1.0" SoftwareRevision="36.00" TargetName="ExampleWithCICD_L85E" TargetType="Controller" ContainsContext="false" ExportDate="Fri Nov 15 01:11:39 2024" ExportOptions="NoRawData L5KData DecoratedData ForceProtectedEncoding AllProjDocTrans">
+<Controller Use="Target" Name="ExampleWithCICD_L85E" ProcessorType="1756-L85E" MajorRev="36" MinorRev="11" MajorFaultProgram="PXX_FaultHandler" ProjectCreationDate="Fri Nov 15 01:11:00 2024" LastModifiedDate="Fri Nov 15 01:11:20 2024" SFCExecutionControl="CurrentActive" SFCRestartPosition="MostRecent" SFCLastScan="DontScan"
+ CommPath="EmulateEthernet\127.0.0.1" ProjectSN="16#0000_0000" MatchProjectToController="false" CanUseRPIFromProducer="false" InhibitAutomaticFirmwareUpdate="0" PassThroughConfiguration="EnabledWithAppend" DownloadProjectDocumentationAndExtendedProperties="true" DownloadProjectCustomProperties="true" ReportMinorOverflow="false" AutoDiagsEnabled="true" WebServerEnabled="false"
+>
+<RedundancyInfo Enabled="false" KeepTestEditsOnSwitchOver="false"/>
+<Security Code="0" ChangesToDetect="16#ffff_ffff_ffff_ffff"/>
+<SafetyInfo/>
+<DataTypes>
+<DataType Name="FAULTRECORD" Family="NoFamily" Class="User">
+<Members>
+<Member Name="Time_Low" DataType="DINT" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read/Write">
+<Description>
+<![CDATA[Lower 32 bits of the fault timestamp value]]>
+</Description>
+</Member>
+<Member Name="Time_High" DataType="DINT" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read/Write">
+<Description>
+<![CDATA[Upper 32 bits of the fault timestamp value]]>
+</Description>
+</Member>
+<Member Name="Type" DataType="INT" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read/Write">
+<Description>
+<![CDATA[Fault type (program, I/O, and so forth)]]>
+</Description>
+</Member>
+<Member Name="Code" DataType="INT" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read/Write">
+<Description>
+<![CDATA[Unique code for the fault]]>
+</Description>
+</Member>
+<Member Name="Info" DataType="DINT" Dimension="8" Radix="Decimal" Hidden="false" ExternalAccess="Read/Write">
+<Description>
+<![CDATA[Fault specific information]]>
+</Description>
+</Member>
+</Members>
+</DataType>
+</DataTypes>
+<Modules>
+<Module Name="Local" CatalogNumber="1756-L85E" Vendor="1" ProductType="14" ProductCode="168" Major="36" Minor="11" ParentModule="Local" ParentModPortId="1" Inhibited="false" MajorFault="true"
+>
+<EKey State="Disabled"/>
+<Ports>
+<Port Id="1" Address="0" Type="ICP" Upstream="false">
+<Bus Size="17"/>
+</Port>
+<Port Id="2" Type="Ethernet" Upstream="false">
+<Bus/>
+</Port>
+</Ports>
+</Module>
+</Modules>
+<AddOnInstructionDefinitions/>
+<Tags>
+<Tag Name="AT_ClearFault" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Description>
+<![CDATA[Automated Testing -------------------- clear the fault  type & code]]>
+</Description>
+<Data Format="L5K">
+<![CDATA[0]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="BOOL" Radix="Decimal" Value="0"/>
+</Data>
+</Tag>
+<Tag Name="AT_EnableIn" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Description>
+<![CDATA[Automated Testing -------------------- set the EnableIn AOI input parameter]]>
+</Description>
+<Data Format="L5K">
+<![CDATA[0]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="BOOL" Radix="Decimal" Value="0"/>
+</Data>
+</Tag>
+<Tag Name="AT_FaultCode" TagType="Base" DataType="DINT" Radix="Decimal" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Description>
+<![CDATA[Automated Testing -------------------- contains fault code number]]>
+</Description>
+<Data Format="L5K">
+<![CDATA[0]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="DINT" Radix="Decimal" Value="0"/>
+</Data>
+</Tag>
+<Tag Name="AT_FaultedIndicator" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Description>
+<![CDATA[Automated Testing -------------------- boolean HIGH if controller faulted]]>
+</Description>
+<Data Format="L5K">
+<![CDATA[0]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="BOOL" Radix="Decimal" Value="0"/>
+</Data>
+</Tag>
+<Tag Name="AT_FaultType" TagType="Base" DataType="DINT" Radix="Decimal" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Description>
+<![CDATA[Automated Testing -------------------- contains fault type number]]>
+</Description>
+<Data Format="L5K">
+<![CDATA[0]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="DINT" Radix="Decimal" Value="0"/>
+</Data>
+</Tag>
+<Tag Name="AT_ToggleTest" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Description>
+<![CDATA[Automated Testing -------------------- toggle to progress AOI testing by 1 clock cycle]]>
+</Description>
+<Data Format="L5K">
+<![CDATA[0]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="BOOL" Radix="Decimal" Value="0"/>
+</Data>
+</Tag>
+<Tag Name="I_AND_1" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Description>
+<![CDATA[AND Logic
+-------------------- input 1]]>
+</Description>
+<Data Format="L5K">
+<![CDATA[0]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="BOOL" Radix="Decimal" Value="0"/>
+</Data>
+</Tag>
+<Tag Name="I_AND_2" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Description>
+<![CDATA[AND Logic
+-------------------- input 2]]>
+</Description>
+<Data Format="L5K">
+<![CDATA[0]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="BOOL" Radix="Decimal" Value="0"/>
+</Data>
+</Tag>
+<Tag Name="I_OR_1" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Description>
+<![CDATA[OR Logic
+-------------------- input 1]]>
+</Description>
+<Data Format="L5K">
+<![CDATA[0]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="BOOL" Radix="Decimal" Value="0"/>
+</Data>
+</Tag>
+<Tag Name="I_OR_2" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Description>
+<![CDATA[OR Logic
+-------------------- input 2]]>
+</Description>
+<Data Format="L5K">
+<![CDATA[0]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="BOOL" Radix="Decimal" Value="0"/>
+</Data>
+</Tag>
+<Tag Name="LowerBound_LINT" TagType="Base" DataType="LINT" Radix="Decimal" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Data Format="L5K">
+<![CDATA[-9223372036854775808]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="LINT" Radix="Decimal" Value="-9223372036854775808"/>
+</Data>
+</Tag>
+<Tag Name="LowerBound_REAL" TagType="Base" DataType="REAL" Radix="Float" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Data Format="L5K">
+<![CDATA[-1.79769315e-038]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="REAL" Radix="Float" Value="-1.79769315e-038"/>
+</Data>
+</Tag>
+<Tag Name="LowerBound_STRING" TagType="Base" DataType="STRING" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Data Format="L5K">
+<![CDATA[[9,'Good Bye!$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00'
+		]]]>
+</Data>
+<Data Format="String" Length="9">
+<![CDATA['Good Bye!']]>
+</Data>
+</Tag>
+<Tag Name="major_fault_record" TagType="Base" DataType="FAULTRECORD" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Data Format="L5K">
+<![CDATA[[0,0,0,0,[0,0,0,0,0,0,0,0]]]]>
+</Data>
+<Data Format="Decorated">
+<Structure DataType="FAULTRECORD">
+<DataValueMember Name="Time_Low" DataType="DINT" Radix="Decimal" Value="0"/>
+<DataValueMember Name="Time_High" DataType="DINT" Radix="Decimal" Value="0"/>
+<DataValueMember Name="Type" DataType="INT" Radix="Decimal" Value="0"/>
+<DataValueMember Name="Code" DataType="INT" Radix="Decimal" Value="0"/>
+<ArrayMember Name="Info" DataType="DINT" Dimensions="8" Radix="Decimal">
+<Element Index="[0]" Value="0"/>
+<Element Index="[1]" Value="0"/>
+<Element Index="[2]" Value="0"/>
+<Element Index="[3]" Value="0"/>
+<Element Index="[4]" Value="0"/>
+<Element Index="[5]" Value="0"/>
+<Element Index="[6]" Value="0"/>
+<Element Index="[7]" Value="0"/>
+</ArrayMember>
+</Structure>
+</Data>
+</Tag>
+<Tag Name="O_AND" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Description>
+<![CDATA[AND Logic
+-------------------- output]]>
+</Description>
+<Data Format="L5K">
+<![CDATA[0]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="BOOL" Radix="Decimal" Value="0"/>
+</Data>
+</Tag>
+<Tag Name="O_OR" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Description>
+<![CDATA[OR Logic
+-------------------- output]]>
+</Description>
+<Data Format="L5K">
+<![CDATA[0]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="BOOL" Radix="Decimal" Value="0"/>
+</Data>
+</Tag>
+<Tag Name="test2" TagType="Base" DataType="DINT" Radix="Decimal" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Data Format="L5K">
+<![CDATA[0]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="DINT" Radix="Decimal" Value="0"/>
+</Data>
+</Tag>
+<Tag Name="UpperBound_LINT" TagType="Base" DataType="LINT" Radix="Decimal" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Data Format="L5K">
+<![CDATA[9223372036854775807]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="LINT" Radix="Decimal" Value="9223372036854775807"/>
+</Data>
+</Tag>
+<Tag Name="UpperBound_REAL" TagType="Base" DataType="REAL" Radix="Float" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Data Format="L5K">
+<![CDATA[3.40282306e+038]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="REAL" Radix="Float" Value="3.40282306e+038"/>
+</Data>
+</Tag>
+<Tag Name="UpperBound_STRING" TagType="Base" DataType="STRING" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Data Format="L5K">
+<![CDATA[[12,'Hello World!$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00'
+		]]]>
+</Data>
+<Data Format="String" Length="12">
+<![CDATA['Hello World!']]>
+</Data>
+</Tag>
+</Tags>
+<Programs>
+<Program Name="P00_AND_OR_Logic" TestEdits="false" MainRoutineName="R00_Main" Disabled="false" UseAsFolder="false">
+<Tags/>
+<Routines>
+<Routine Name="R00_Main" Type="RLL">
+<RLLContent>
+<Rung Number="0" Type="N">
+<Comment>
+<![CDATA[
+AND Boolean Logic Example]]>
+</Comment>
+<Text>
+<![CDATA[JSR(R01_AND_Example,0);]]>
+</Text>
+</Rung>
+<Rung Number="1" Type="N">
+<Comment>
+<![CDATA[
+OR Boolean Logic Example]]>
+</Comment>
+<Text>
+<![CDATA[JSR(R02_OR_Example,0);]]>
+</Text>
+</Rung>
+</RLLContent>
+</Routine>
+<Routine Name="R01_AND_Example" Type="RLL">
+<RLLContent>
+<Rung Number="0" Type="N">
+<Text>
+<![CDATA[XIC(I_AND_1)XIC(I_AND_2)OTE(O_AND);]]>
+</Text>
+</Rung>
+</RLLContent>
+</Routine>
+<Routine Name="R02_OR_Example" Type="RLL">
+<RLLContent>
+<Rung Number="0" Type="N">
+<Text>
+<![CDATA[[XIC(I_OR_1) ,XIC(I_OR_2) ]OTE(O_OR);]]>
+</Text>
+</Rung>
+</RLLContent>
+</Routine>
+</Routines>
+</Program>
+<Program Name="P00_ShowcaseDataTypes" TestEdits="false" MainRoutineName="R00_ShowcaseDataTypes" Disabled="false" UseAsFolder="false">
+<Tags>
+<Tag Name="I_ToggleDINT_LocalTag" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Data Format="L5K">
+<![CDATA[0]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="BOOL" Radix="Decimal" Value="0"/>
+</Data>
+</Tag>
+<Tag Name="I_ToggleEnable_LocalTag" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Data Format="L5K">
+<![CDATA[0]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="BOOL" Radix="Decimal" Value="0"/>
+</Data>
+</Tag>
+<Tag Name="I_ToggleINT_LocalTag" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Data Format="L5K">
+<![CDATA[0]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="BOOL" Radix="Decimal" Value="0"/>
+</Data>
+</Tag>
+<Tag Name="I_ToggleLINT_LocalTag" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Data Format="L5K">
+<![CDATA[0]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="BOOL" Radix="Decimal" Value="0"/>
+</Data>
+</Tag>
+<Tag Name="I_ToggleREAL_LocalTag" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Data Format="L5K">
+<![CDATA[0]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="BOOL" Radix="Decimal" Value="0"/>
+</Data>
+</Tag>
+<Tag Name="I_ToggleSINT_LocalTag" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Data Format="L5K">
+<![CDATA[0]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="BOOL" Radix="Decimal" Value="0"/>
+</Data>
+</Tag>
+<Tag Name="I_ToggleSTRING_LocalTag" TagType="Base" DataType="BOOL" Radix="Decimal" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Data Format="L5K">
+<![CDATA[0]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="BOOL" Radix="Decimal" Value="0"/>
+</Data>
+</Tag>
+<Tag Name="O_DINT_LocalTag" TagType="Base" DataType="DINT" Radix="Decimal" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Data Format="L5K">
+<![CDATA[0]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="DINT" Radix="Decimal" Value="0"/>
+</Data>
+</Tag>
+<Tag Name="O_INT_LocalTag" TagType="Base" DataType="INT" Radix="Decimal" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Data Format="L5K">
+<![CDATA[0]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="INT" Radix="Decimal" Value="0"/>
+</Data>
+</Tag>
+<Tag Name="O_LINT_LocalTag" TagType="Base" DataType="LINT" Radix="Decimal" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Data Format="L5K">
+<![CDATA[0]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="LINT" Radix="Decimal" Value="0"/>
+</Data>
+</Tag>
+<Tag Name="O_REAL_LocalTag" TagType="Base" DataType="REAL" Radix="Float" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Data Format="L5K">
+<![CDATA[0.00000000e+000]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="REAL" Radix="Float" Value="0.0"/>
+</Data>
+</Tag>
+<Tag Name="O_SINT_LocalTag" TagType="Base" DataType="SINT" Radix="Decimal" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Data Format="L5K">
+<![CDATA[0]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="SINT" Radix="Decimal" Value="0"/>
+</Data>
+</Tag>
+<Tag Name="O_STRING_LocalTag" TagType="Base" DataType="STRING" Constant="false" ExternalAccess="Read/Write" OpcUaAccess="None">
+<Data Format="L5K">
+<![CDATA[[0,'$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00'
+		]]]>
+</Data>
+<Data Format="String" Length="0">
+<![CDATA['']]>
+</Data>
+</Tag>
+</Tags>
+<Routines>
+<Routine Name="R00_ShowcaseDataTypes" Type="RLL">
+<RLLContent>
+<Rung Number="0" Type="N">
+<Comment>
+<![CDATA[
+Showcase the data types that can be used by the LDSDK.]]>
+</Comment>
+<Text>
+<![CDATA[NOP();]]>
+</Text>
+</Rung>
+<Rung Number="1" Type="N">
+<Text>
+<![CDATA[XIC(I_ToggleEnable_LocalTag)[XIC(I_ToggleSINT_LocalTag) MOVE(127,O_SINT_LocalTag) ,XIO(I_ToggleSINT_LocalTag) MOVE(-128,O_SINT_LocalTag) ];]]>
+</Text>
+</Rung>
+<Rung Number="2" Type="N">
+<Text>
+<![CDATA[XIC(I_ToggleEnable_LocalTag)[XIC(I_ToggleINT_LocalTag) MOVE(32767,O_INT_LocalTag) ,XIO(I_ToggleINT_LocalTag) MOVE(-32768,O_INT_LocalTag) ];]]>
+</Text>
+</Rung>
+<Rung Number="3" Type="N">
+<Text>
+<![CDATA[XIC(I_ToggleEnable_LocalTag)[XIC(I_ToggleDINT_LocalTag) MOVE(2147483647,O_DINT_LocalTag) ,XIO(I_ToggleDINT_LocalTag) MOVE(-2147483648,O_DINT_LocalTag) ];]]>
+</Text>
+</Rung>
+<Rung Number="4" Type="N">
+<Text>
+<![CDATA[XIC(I_ToggleEnable_LocalTag)[XIC(I_ToggleLINT_LocalTag) MOVE(UpperBound_LINT,O_LINT_LocalTag) ,XIO(I_ToggleLINT_LocalTag) MOVE(LowerBound_LINT,O_LINT_LocalTag) ];]]>
+</Text>
+</Rung>
+<Rung Number="5" Type="N">
+<Text>
+<![CDATA[XIC(I_ToggleEnable_LocalTag)[XIC(I_ToggleREAL_LocalTag) MOVE(UpperBound_REAL,O_REAL_LocalTag) ,XIO(I_ToggleREAL_LocalTag) MOVE(LowerBound_REAL,O_REAL_LocalTag) ];]]>
+</Text>
+</Rung>
+<Rung Number="6" Type="N">
+<Text>
+<![CDATA[XIC(I_ToggleEnable_LocalTag)[XIC(I_ToggleSTRING_LocalTag) MOVE(UpperBound_STRING,O_STRING_LocalTag) ,XIO(I_ToggleSTRING_LocalTag) MOVE(LowerBound_STRING,O_STRING_LocalTag) ];]]>
+</Text>
+</Rung>
+</RLLContent>
+</Routine>
+</Routines>
+</Program>
+<Program Name="P01_ClearFault" TestEdits="false" MainRoutineName="R00_ClearFault" Disabled="false" UseAsFolder="false">
+<Tags/>
+<Routines>
+<Routine Name="R00_ClearFault" Type="RLL">
+<RLLContent>
+<Rung Number="0" Type="N">
+<Comment>
+<![CDATA[AUTOMATED TESTING | FAULT HANDLING
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+Clear the tags storing the fault Type and Code information.]]>
+</Comment>
+<Text>
+<![CDATA[XIC(AT_ClearFault)CLR(AT_FaultType)CLR(AT_FaultCode);]]>
+</Text>
+</Rung>
+</RLLContent>
+</Routine>
+</Routines>
+</Program>
+<Program Name="PXX_FaultHandler" TestEdits="false" MainRoutineName="RXX_FaultHandler" Disabled="false" UseAsFolder="false">
+<Tags/>
+<Routines>
+<Routine Name="RXX_FaultHandler" Type="RLL">
+<RLLContent>
+<Rung Number="0" Type="N">
+<Comment>
+<![CDATA[FAULT HANDLER
+													- - - - - - - - - - - - - - -
+													Get the fault (GSV) and store the fault Type and Code (MOVEs) in two tags that can be programmatically obtained during testing for better troubleshooting assistance.
+													Clear the fault Type and Code (SSV) using the major_fault_record tag for the FAULTRECORD user-defined data type.
+													Keep an indicator of fault state (OTE) for automated testing logic.
+
+													(Rung created with the assistance of https://literature.rockwellautomation.com/idc/groups/literature/documents/pm/1756-pm014_-en-p.pdf)
+													(Fault code spreadsheet link: https://literature.rockwellautomation.com/idc/groups/literature/documents/rd/1756-rd001_-en-p.xlsx)
+													]]>
+</Comment>
+<Text>
+<![CDATA[GSV(Program,THIS,MajorFaultRecord,major_fault_record.Time_Low)[MOVE(major_fault_record.Type,AT_FaultType) MOVE(major_fault_record.Code,AT_FaultCode) ,CLR(major_fault_record.Type) CLR(major_fault_record.Code) ,SSV(Program,THIS,MajorFaultRecord,major_fault_record.Time_Low) ,OTE(AT_FaultedIndicator) ];]]>
+</Text>
+</Rung>
+</RLLContent>
+</Routine>
+</Routines>
+</Program>
+</Programs>
+<Tasks>
+<Task Name="T00_MiscLogic" Type="CONTINUOUS" Priority="10" Watchdog="500" DisableUpdateOutputs="false" InhibitTask="false">
+<ScheduledPrograms>
+<ScheduledProgram Name="P00_AND_OR_Logic"/>
+<ScheduledProgram Name="P01_ClearFault"/>
+</ScheduledPrograms>
+</Task>
+<Task Name="T01_ShowcaseDataTypes" Type="PERIODIC" Rate="10" Priority="10" Watchdog="500" DisableUpdateOutputs="false" InhibitTask="false">
+<ScheduledPrograms>
+<ScheduledProgram Name="P00_ShowcaseDataTypes"/>
+</ScheduledPrograms>
+</Task>
+</Tasks>
+<CST MasterID="0"/>
+<WallClockTime LocalTimeAdjustment="0" TimeZone="0"/>
+<Trends/>
+<DataLogs/>
+<TimeSynchronize Priority1="128" Priority2="128" PTPEnable="false"/>
+<EthernetPorts>
+<EthernetPort Port="1" Label="1" PortEnabled="true"/>
+</EthernetPorts>
+</Controller>
+</RSLogix5000Content>
