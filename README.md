@@ -256,6 +256,12 @@ Example output:
 
 Rungs with pending or test online edits are skipped, with a note.
 
+For a **visual diff**, use `--format html`. Changed rungs are drawn before and after, side by side, with removed instructions in red and added ones in green:
+
+```bash
+plcinfo diff old.L5X new.L5X --format html -o changes.html
+```
+
 Exit code is `0` if identical, `1` if differences are found, and `2` if a file could not be read or parsed (useful for CI/CD).
 
 #### `xref` - Cross-Reference
@@ -288,6 +294,22 @@ plcinfo lint project.L5X --fail-on warning --ignore PLC006,PLC007   # CI gate
 ```
 
 Exits with `1` when there are findings at or above `--fail-on` (`error` by default; also `warning`, `info`, `never`).
+
+#### `report` - HTML Report with Rendered Ladder Logic
+
+Write a single, self-contained HTML page with no external files or scripts, so it can be emailed or attached to a ticket:
+
+- project summary and lint findings
+- tasks
+- every program and routine, with **ladder rungs drawn as diagrams** (contacts, coils, boxes and branches)
+- Structured Text source and Siemens/PLCopen networks
+- tags, data types and I/O modules
+
+```bash
+plcinfo report project.L5X -o project.html
+```
+
+The page follows the viewer's light or dark theme. Ladder diagrams are drawn for Rockwell rungs and PLCopen LD networks. Siemens LAD/FBD networks appear as their power-flow text.
 
 #### `export` - Export to Neutral Format
 

@@ -37,7 +37,7 @@ public abstract class CommandBase
     // No Default here: the parser would apply it even when -f is omitted, overriding
     // commands with a different default (export defaults to json).
     [Option('f', "format", Required = false, MetaValue = "FORMAT",
-        HelpText = "Output format: text, json, yaml, md (markdown), csv (tabular commands). Default: text (export: json).")]
+        HelpText = "Output format: text, json, yaml, md (markdown), csv (tabular commands), html (report, diff). Default: text (export: json, report: html).")]
     public OutputFormat Format { get; set; } = OutputFormat.Text;
 
     [Option('o', "output", Required = false, MetaValue = "FILE",
@@ -155,5 +155,6 @@ public enum OutputFormat
     Yaml,
     Md,
     Markdown = Md,
-    Csv
+    Csv,
+    Html
 }
