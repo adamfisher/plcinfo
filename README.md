@@ -1,5 +1,7 @@
 # PLCInfo
 
+[![CI](https://github.com/adamfisher/plcinfo/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/adamfisher/plcinfo/actions/workflows/ci.yml)
+
 A cross-platform command-line tool for analyzing and inspecting Programmable Logic Controller (PLC) project files from multiple vendors. Extract project information, analyze code metrics, compare versions, and export data in various formats.
 
 ## Overview
