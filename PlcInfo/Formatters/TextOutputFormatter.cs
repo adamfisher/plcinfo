@@ -429,10 +429,7 @@ public class TextOutputFormatter : IOutputFormatter
             {
                 sb.AppendLine($"  + {detail.Location}");
                 sb.AppendLine($"      {detail.Message}");
-                if (!string.IsNullOrEmpty(detail.Value2))
-                {
-                    sb.AppendLine($"      Value: {detail.Value2}");
-                }
+                AppendDiffValues(sb, detail);
                 sb.AppendLine();
             }
         }
@@ -445,10 +442,7 @@ public class TextOutputFormatter : IOutputFormatter
             {
                 sb.AppendLine($"  - {detail.Location}");
                 sb.AppendLine($"      {detail.Message}");
-                if (!string.IsNullOrEmpty(detail.Value1))
-                {
-                    sb.AppendLine($"      Value: {detail.Value1}");
-                }
+                AppendDiffValues(sb, detail);
                 sb.AppendLine();
             }
         }
@@ -461,11 +455,7 @@ public class TextOutputFormatter : IOutputFormatter
             {
                 sb.AppendLine($"  * {detail.Location}");
                 sb.AppendLine($"      {detail.Message}");
-                if (!string.IsNullOrEmpty(detail.Value1) && !string.IsNullOrEmpty(detail.Value2))
-                {
-                    sb.AppendLine($"      Old: {detail.Value1}");
-                    sb.AppendLine($"      New: {detail.Value2}");
-                }
+                AppendDiffValues(sb, detail);
                 sb.AppendLine();
             }
         }
@@ -478,18 +468,47 @@ public class TextOutputFormatter : IOutputFormatter
             {
                 sb.AppendLine($"  i {detail.Location}");
                 sb.AppendLine($"      {detail.Message}");
-                if (!string.IsNullOrEmpty(detail.Value1) || !string.IsNullOrEmpty(detail.Value2))
-                {
-                    if (!string.IsNullOrEmpty(detail.Value1))
-                        sb.AppendLine($"      Old: {detail.Value1}");
-                    if (!string.IsNullOrEmpty(detail.Value2))
-                        sb.AppendLine($"      New: {detail.Value2}");
-                }
+                AppendDiffValues(sb, detail);
                 sb.AppendLine();
             }
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Writes a detail's old/new values. Logic changes (rungs, source lines, networks)
+    /// are shown diff-style as "-"/"+" lines; other values as "Old:"/"New:" (or "Value:"
+    /// for additions and removals). Multi-line values stay indented under the detail.
+    /// </summary>
+    private static void AppendDiffValues(StringBuilder sb, Services.DiffDetail detail)
+    {
+        const string indent = "      ";
+        var logic = detail.Category == Services.PlcDiffService.Categories.Logic;
+
+        void Lines(string? value, string firstPrefix, string nextPrefix)
+        {
+            if (string.IsNullOrEmpty(value))
+                return;
+            var lines = value.Replace("\r\n", "\n").Split('\n');
+            for (int i = 0; i < lines.Length; i++)
+                sb.AppendLine($"{indent}{(i == 0 ? firstPrefix : nextPrefix)}{lines[i]}");
+        }
+
+        if (logic)
+        {
+            Lines(detail.Value1, "- ", "- ");
+            Lines(detail.Value2, "+ ", "+ ");
+        }
+        else if (detail.Type is "Added" or "Removed")
+        {
+            Lines(detail.Type == "Added" ? detail.Value2 : detail.Value1, "Value: ", "       ");
+        }
+        else
+        {
+            Lines(detail.Value1, "Old: ", "     ");
+            Lines(detail.Value2, "New: ", "     ");
+        }
     }
 
     private static IEnumerable<TagInfo> FilterTags(IReadOnlyList<TagInfo> tags, TagFilter? filter)

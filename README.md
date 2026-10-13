@@ -186,19 +186,41 @@ plcinfo search project.L5X "TON" --kind instruction
 
 #### `diff` - Compare Two Projects
 
-Identify differences between two versions of a project.
+Compare two versions of a project down to individual rungs and lines of code.
 
 ```bash
 plcinfo diff project-v1.L5X project-v2.L5X
-plcinfo diff old.ACD new.ACD --format md
+plcinfo diff old.L5X new.L5X --format md --output changes.md
+```
+
+Example output:
+
+```text
+  + Programs.MainProgram.Routines.MainRoutine.Rungs[1]
+      Rung 1 added to 'MainRoutine'
+      + XIC(DINT.5)[XIO(DINT.6) ,XIC(DINT.7) ]OTE(DINT.8);
+
+  * Programs.MainProgram.Routines.MainRoutine.Rungs[2]
+      Rung 2 changed in 'MainRoutine': -OTE(DINT.3) +OTL(DINT.3)
+      - XIC(DINT.2)OTE(DINT.3);
+      + XIC(DINT.2)OTL(DINT.3);
+
+  * Programs.MainProgram.Routines.STRoutine.Source[L2]
+      Routine 'STRoutine': line L2 changed
+      - DINT := DINT AND ULINT; // Line 2 Comment
+      + DINT := DINT OR ULINT; // Line 2 Comment
 ```
 
 **Detects changes in:**
-- Tags (added, removed, modified)
-- Routines (added, removed, modified)
-- Programs and tasks
-- I/O configuration
-- Controller settings
+- **Ladder logic:** rungs are matched by content, so inserting a rung reports one addition instead of shifting every rung after it. Changed rungs show which instructions were removed and added. Whitespace-only differences are ignored, and rung comment changes are informational.
+- **Structured Text / SCL / STL source:** line-level hunks with line numbers.
+- **Networks** (Siemens LAD/FBD, PLCopen LD), by their canonical text.
+- **Routines and blocks:** added, removed, language changes.
+- **User-defined data types:** members added, removed, retyped or reordered.
+- **Tags:** controller and program scope (data type, scope, usage, initial value; description changes are informational).
+- **Programs, tasks, I/O modules and controller settings.**
+
+Rungs with pending or test online edits are skipped, with a note.
 
 Exit code is `0` if identical, `1` if differences are found, and `2` if a file could not be read or parsed (useful for CI/CD).
 
