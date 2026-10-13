@@ -19,6 +19,8 @@ public static class ReportFormatter
                 return JsonSerializer.Serialize(entries, JsonOutputFormatter.Options);
             case OutputFormat.Yaml:
                 return YamlOutputFormatter.Serializer.Serialize(entries);
+            case OutputFormat.Csv:
+                return CsvOutputFormatter.FormatXref(entries);
         }
 
         var rows = entries.Select(e => new[]
@@ -42,6 +44,8 @@ public static class ReportFormatter
                 return JsonSerializer.Serialize(findings, JsonOutputFormatter.Options);
             case OutputFormat.Yaml:
                 return YamlOutputFormatter.Serializer.Serialize(findings);
+            case OutputFormat.Csv:
+                return CsvOutputFormatter.FormatLint(findings);
         }
 
         var counts = Enum.GetValues<LintSeverity>()

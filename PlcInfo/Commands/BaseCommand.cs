@@ -37,7 +37,7 @@ public abstract class CommandBase
     // No Default here: the parser would apply it even when -f is omitted, overriding
     // commands with a different default (export defaults to json).
     [Option('f', "format", Required = false, MetaValue = "FORMAT",
-        HelpText = "Output format: text, json, yaml, md (markdown). Default: text (export: json).")]
+        HelpText = "Output format: text, json, yaml, md (markdown), csv (tabular commands). Default: text (export: json).")]
     public OutputFormat Format { get; set; } = OutputFormat.Text;
 
     [Option('o', "output", Required = false, MetaValue = "FILE",
@@ -129,7 +129,8 @@ public abstract class CommandBase
             return;
         }
 
-        await File.WriteAllTextAsync(OutputPath, content, new UTF8Encoding(false), cancellationToken);
+        // A BOM lets Excel detect UTF-8 when opening CSV files (non-ASCII tag comments).
+        await File.WriteAllTextAsync(OutputPath, content, new UTF8Encoding(Format == OutputFormat.Csv), cancellationToken);
         if (Verbose)
             Console.Error.WriteLine($"plcinfo: wrote {OutputPath}");
     }
@@ -153,5 +154,6 @@ public enum OutputFormat
     Json,
     Yaml,
     Md,
-    Markdown = Md
+    Markdown = Md,
+    Csv
 }

@@ -49,6 +49,13 @@ public interface IOutputFormatter
 public class TagFilter
 {
     /// <summary>
+    /// All tags in the project: controller/global tags followed by each program's,
+    /// POU's or AOI's own tags (whose Scope is that program's name).
+    /// </summary>
+    public static IReadOnlyList<TagInfo> AllTags(PlcProject project) =>
+        project.Tags.Concat(project.Programs.SelectMany(p => p.LocalTags)).ToList();
+
+    /// <summary>
     /// Filter by scope (e.g., Global, Local, Program name).
     /// </summary>
     public string? Scope { get; set; }
