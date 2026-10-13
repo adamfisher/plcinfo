@@ -205,7 +205,7 @@ public class LintService
     {
         var usedByScope = xref
             .Where(e => e.Scope != null)
-            .Select(e => (e.Scope!, e.Tag))
+            .Select(e => (Scope: e.Scope!, e.Tag))
             .ToHashSet(new ScopeTagComparer());
 
         // Aliases count as using their base tag.
@@ -216,7 +216,13 @@ public class LintService
                 usedByScope.Add(("*", baseTag));
         }
 
-        bool Used(string scope, string tag) => usedByScope.Contains((scope, tag)) || usedByScope.Contains(("*", tag));
+        // A struct is used when any of its members is (DB members can be stored as "Struct.Member").
+        var usedPrefixes = usedByScope
+            .SelectMany(u => Prefixes(u.Tag).Select(prefix => (u.Scope, prefix)))
+            .ToHashSet(new ScopeTagComparer());
+
+        bool Used(string scope, string tag) =>
+            usedByScope.Contains((scope, tag)) || usedByScope.Contains(("*", tag)) || usedPrefixes.Contains((scope, tag));
 
         foreach (var program in project.Programs.Where(p => !IsAoi(p)))
         {
@@ -324,6 +330,12 @@ public class LintService
                 });
             }
         }
+    }
+
+    private static IEnumerable<string> Prefixes(string dottedName)
+    {
+        for (int i = dottedName.IndexOf('.'); i > 0; i = dottedName.IndexOf('.', i + 1))
+            yield return dottedName[..i];
     }
 
     private sealed class ScopeTagComparer : IEqualityComparer<(string Scope, string Tag)>
