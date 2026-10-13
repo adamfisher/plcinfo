@@ -1,3 +1,4 @@
+using System.Globalization;
 using PlcInfo.Models;
 
 namespace PlcInfo.Services;
@@ -85,8 +86,8 @@ public class PlcDiffService
                 Type = "Info",
                 Location = "Project.LastModified",
                 Message = "Last modified date changed",
-                Value1 = p1.LastModified?.ToString("yyyy-MM-dd HH:mm:ss") ?? "N/A",
-                Value2 = p2.LastModified?.ToString("yyyy-MM-dd HH:mm:ss") ?? "N/A"
+                Value1 = p1.LastModified?.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) ?? "N/A",
+                Value2 = p2.LastModified?.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) ?? "N/A"
             });
         }
     }
@@ -158,402 +159,216 @@ public class PlcDiffService
 
     private void CompareTasks(IReadOnlyList<TaskInfo> tasks1, IReadOnlyList<TaskInfo> tasks2, List<DiffDetail> details)
     {
-        var names1 = tasks1.Select(t => t.Name).ToHashSet();
-        var names2 = tasks2.Select(t => t.Name).ToHashSet();
-
-        // Find added tasks
-        foreach (var name in names2.Except(names1))
-        {
-            var task = tasks2.First(t => t.Name == name);
-            details.Add(new DiffDetail
+        CompareKeyed(tasks1, tasks2, t => t.Name, t => t.Type, "Tasks", "Task",
+            t => $"Type: {t.Type}, Priority: {Invariant(t.Priority)}",
+            details,
+            (name, location, task1, task2) =>
             {
-                Type = "Added",
-                Location = $"Tasks.{name}",
-                Message = $"Task '{name}' added",
-                Value2 = $"Type: {task.Type}, Priority: {task.Priority}"
+                AddIfChanged(details, location, "Type", $"Task '{name}' type changed", task1.Type, task2.Type);
+                AddIfChanged(details, location, "Priority", $"Task '{name}' priority changed",
+                    Invariant(task1.Priority), Invariant(task2.Priority));
+                if (task1.WatchdogTimeout != task2.WatchdogTimeout)
+                {
+                    AddIfChanged(details, location, "WatchdogTimeout", $"Task '{name}' watchdog timeout changed",
+                        Invariant(task1.WatchdogTimeout) ?? "N/A", Invariant(task2.WatchdogTimeout) ?? "N/A");
+                }
             });
-        }
-
-        // Find removed tasks
-        foreach (var name in names1.Except(names2))
-        {
-            var task = tasks1.First(t => t.Name == name);
-            details.Add(new DiffDetail
-            {
-                Type = "Removed",
-                Location = $"Tasks.{name}",
-                Message = $"Task '{name}' removed",
-                Value1 = $"Type: {task.Type}, Priority: {task.Priority}"
-            });
-        }
-
-        // Find modified tasks
-        foreach (var name in names1.Intersect(names2))
-        {
-            var task1 = tasks1.First(t => t.Name == name);
-            var task2 = tasks2.First(t => t.Name == name);
-
-            if (task1.Type != task2.Type)
-            {
-                details.Add(new DiffDetail
-                {
-                    Type = "Modified",
-                    Location = $"Tasks.{name}.Type",
-                    Message = $"Task '{name}' type changed",
-                    Value1 = task1.Type,
-                    Value2 = task2.Type
-                });
-            }
-
-            if (task1.Priority != task2.Priority)
-            {
-                details.Add(new DiffDetail
-                {
-                    Type = "Modified",
-                    Location = $"Tasks.{name}.Priority",
-                    Message = $"Task '{name}' priority changed",
-                    Value1 = task1.Priority.ToString(),
-                    Value2 = task2.Priority.ToString()
-                });
-            }
-
-            if (task1.WatchdogTimeout != task2.WatchdogTimeout)
-            {
-                details.Add(new DiffDetail
-                {
-                    Type = "Modified",
-                    Location = $"Tasks.{name}.WatchdogTimeout",
-                    Message = $"Task '{name}' watchdog timeout changed",
-                    Value1 = task1.WatchdogTimeout?.ToString() ?? "N/A",
-                    Value2 = task2.WatchdogTimeout?.ToString() ?? "N/A"
-                });
-            }
-        }
     }
 
     private void ComparePrograms(IReadOnlyList<ProgramInfo> programs1, IReadOnlyList<ProgramInfo> programs2, List<DiffDetail> details)
     {
-        var names1 = programs1.Select(p => p.Name).ToHashSet();
-        var names2 = programs2.Select(p => p.Name).ToHashSet();
-
-        // Find added programs
-        foreach (var name in names2.Except(names1))
-        {
-            var program = programs2.First(p => p.Name == name);
-            details.Add(new DiffDetail
+        CompareKeyed(programs1, programs2, p => p.Name, p => p.Type, "Programs", "Program",
+            p => $"Type: {p.Type}, Language: {p.Language}, Routines: {Invariant(p.Routines.Count)}",
+            details,
+            (name, location, program1, program2) =>
             {
-                Type = "Added",
-                Location = $"Programs.{name}",
-                Message = $"Program '{name}' added",
-                Value2 = $"Type: {program.Type}, Language: {program.Language}, Routines: {program.Routines.Count}"
+                AddIfChanged(details, location, "Type", $"Program '{name}' type changed", program1.Type, program2.Type);
+                AddIfChanged(details, location, "Language", $"Program '{name}' language changed", program1.Language, program2.Language);
+                AddIfChanged(details, location, "Routines", $"Program '{name}' routine count changed",
+                    Invariant(program1.Routines.Count), Invariant(program2.Routines.Count));
+
+                // Program-scoped tags are compared individually, not just counted.
+                CompareTags(program1.LocalTags, program2.LocalTags, details, $"{location}.Tags");
             });
-        }
-
-        // Find removed programs
-        foreach (var name in names1.Except(names2))
-        {
-            var program = programs1.First(p => p.Name == name);
-            details.Add(new DiffDetail
-            {
-                Type = "Removed",
-                Location = $"Programs.{name}",
-                Message = $"Program '{name}' removed",
-                Value1 = $"Type: {program.Type}, Language: {program.Language}, Routines: {program.Routines.Count}"
-            });
-        }
-
-        // Find modified programs
-        foreach (var name in names1.Intersect(names2))
-        {
-            var program1 = programs1.First(p => p.Name == name);
-            var program2 = programs2.First(p => p.Name == name);
-
-            if (program1.Type != program2.Type)
-            {
-                details.Add(new DiffDetail
-                {
-                    Type = "Modified",
-                    Location = $"Programs.{name}.Type",
-                    Message = $"Program '{name}' type changed",
-                    Value1 = program1.Type,
-                    Value2 = program2.Type
-                });
-            }
-
-            if (program1.Language != program2.Language)
-            {
-                details.Add(new DiffDetail
-                {
-                    Type = "Modified",
-                    Location = $"Programs.{name}.Language",
-                    Message = $"Program '{name}' language changed",
-                    Value1 = program1.Language,
-                    Value2 = program2.Language
-                });
-            }
-
-            if (program1.Routines.Count != program2.Routines.Count)
-            {
-                details.Add(new DiffDetail
-                {
-                    Type = "Modified",
-                    Location = $"Programs.{name}.Routines",
-                    Message = $"Program '{name}' routine count changed",
-                    Value1 = program1.Routines.Count.ToString(),
-                    Value2 = program2.Routines.Count.ToString()
-                });
-            }
-
-            if (program1.LocalTags.Count != program2.LocalTags.Count)
-            {
-                details.Add(new DiffDetail
-                {
-                    Type = "Modified",
-                    Location = $"Programs.{name}.LocalTags",
-                    Message = $"Program '{name}' local tag count changed",
-                    Value1 = program1.LocalTags.Count.ToString(),
-                    Value2 = program2.LocalTags.Count.ToString()
-                });
-            }
-        }
     }
 
     private void CompareBlocks(IReadOnlyList<BlockInfo> blocks1, IReadOnlyList<BlockInfo> blocks2, List<DiffDetail> details)
     {
-        var names1 = blocks1.Select(b => b.Name).ToHashSet();
-        var names2 = blocks2.Select(b => b.Name).ToHashSet();
-
-        // Find added blocks
-        foreach (var name in names2.Except(names1))
-        {
-            var block = blocks2.First(b => b.Name == name);
-            details.Add(new DiffDetail
+        CompareKeyed(blocks1, blocks2, b => b.Name, b => b.Type, "Blocks", "Block",
+            b => $"Type: {b.Type}, Language: {b.Language}",
+            details,
+            (name, location, block1, block2) =>
             {
-                Type = "Added",
-                Location = $"Blocks.{name}",
-                Message = $"Block '{name}' added",
-                Value2 = $"Type: {block.Type}, Language: {block.Language}"
+                AddIfChanged(details, location, "Type", $"Block '{name}' type changed", block1.Type, block2.Type);
+                AddIfChanged(details, location, "Language", $"Block '{name}' language changed", block1.Language, block2.Language);
             });
-        }
-
-        // Find removed blocks
-        foreach (var name in names1.Except(names2))
-        {
-            var block = blocks1.First(b => b.Name == name);
-            details.Add(new DiffDetail
-            {
-                Type = "Removed",
-                Location = $"Blocks.{name}",
-                Message = $"Block '{name}' removed",
-                Value1 = $"Type: {block.Type}, Language: {block.Language}"
-            });
-        }
-
-        // Find modified blocks
-        foreach (var name in names1.Intersect(names2))
-        {
-            var block1 = blocks1.First(b => b.Name == name);
-            var block2 = blocks2.First(b => b.Name == name);
-
-            if (block1.Type != block2.Type)
-            {
-                details.Add(new DiffDetail
-                {
-                    Type = "Modified",
-                    Location = $"Blocks.{name}.Type",
-                    Message = $"Block '{name}' type changed",
-                    Value1 = block1.Type,
-                    Value2 = block2.Type
-                });
-            }
-
-            if (block1.Language != block2.Language)
-            {
-                details.Add(new DiffDetail
-                {
-                    Type = "Modified",
-                    Location = $"Blocks.{name}.Language",
-                    Message = $"Block '{name}' language changed",
-                    Value1 = block1.Language,
-                    Value2 = block2.Language
-                });
-            }
-        }
     }
 
-    private void CompareTags(IReadOnlyList<TagInfo> tags1, IReadOnlyList<TagInfo> tags2, List<DiffDetail> details)
+    private void CompareTags(IReadOnlyList<TagInfo> tags1, IReadOnlyList<TagInfo> tags2, List<DiffDetail> details,
+        string section = "Tags")
     {
-        var names1 = tags1.Select(t => t.Name).ToHashSet();
-        var names2 = tags2.Select(t => t.Name).ToHashSet();
-
-        // Find added tags
-        foreach (var name in names2.Except(names1))
-        {
-            var tag = tags2.First(t => t.Name == name);
-            details.Add(new DiffDetail
+        // Tags with the same name can exist in different scopes (e.g. two GVLs);
+        // those are told apart by scope.
+        CompareKeyed(tags1, tags2, t => t.Name, t => t.Scope, section, "Tag",
+            t => $"Type: {t.DataType}, Scope: {t.Scope}",
+            details,
+            (name, location, tag1, tag2) =>
             {
-                Type = "Added",
-                Location = $"Tags.{name}",
-                Message = $"Tag '{name}' added",
-                Value2 = $"Type: {tag.DataType}, Scope: {tag.Scope}"
+                AddIfChanged(details, location, "DataType", $"Tag '{name}' data type changed", tag1.DataType, tag2.DataType);
+                AddIfChanged(details, location, "Scope", $"Tag '{name}' scope changed", tag1.Scope, tag2.Scope);
+                if (tag1.Usage != tag2.Usage)
+                    AddIfChanged(details, location, "Usage", $"Tag '{name}' usage changed", tag1.Usage ?? "N/A", tag2.Usage ?? "N/A");
+                if (tag1.InitialValue != tag2.InitialValue)
+                    AddIfChanged(details, location, "InitialValue", $"Tag '{name}' initial value changed",
+                        tag1.InitialValue ?? "N/A", tag2.InitialValue ?? "N/A");
+                if (tag1.Description != tag2.Description)
+                {
+                    details.Add(new DiffDetail
+                    {
+                        Type = "Info",
+                        Location = $"{location}.Description",
+                        Message = $"Tag '{name}' description changed",
+                        Value1 = tag1.Description ?? "",
+                        Value2 = tag2.Description ?? ""
+                    });
+                }
             });
-        }
-
-        // Find removed tags
-        foreach (var name in names1.Except(names2))
-        {
-            var tag = tags1.First(t => t.Name == name);
-            details.Add(new DiffDetail
-            {
-                Type = "Removed",
-                Location = $"Tags.{name}",
-                Message = $"Tag '{name}' removed",
-                Value1 = $"Type: {tag.DataType}, Scope: {tag.Scope}"
-            });
-        }
-
-        // Find modified tags
-        foreach (var name in names1.Intersect(names2))
-        {
-            var tag1 = tags1.First(t => t.Name == name);
-            var tag2 = tags2.First(t => t.Name == name);
-
-            if (tag1.DataType != tag2.DataType)
-            {
-                details.Add(new DiffDetail
-                {
-                    Type = "Modified",
-                    Location = $"Tags.{name}.DataType",
-                    Message = $"Tag '{name}' data type changed",
-                    Value1 = tag1.DataType,
-                    Value2 = tag2.DataType
-                });
-            }
-
-            if (tag1.Scope != tag2.Scope)
-            {
-                details.Add(new DiffDetail
-                {
-                    Type = "Modified",
-                    Location = $"Tags.{name}.Scope",
-                    Message = $"Tag '{name}' scope changed",
-                    Value1 = tag1.Scope,
-                    Value2 = tag2.Scope
-                });
-            }
-
-            if (tag1.Usage != tag2.Usage)
-            {
-                details.Add(new DiffDetail
-                {
-                    Type = "Modified",
-                    Location = $"Tags.{name}.Usage",
-                    Message = $"Tag '{name}' usage changed",
-                    Value1 = tag1.Usage ?? "N/A",
-                    Value2 = tag2.Usage ?? "N/A"
-                });
-            }
-
-            if (tag1.InitialValue != tag2.InitialValue)
-            {
-                details.Add(new DiffDetail
-                {
-                    Type = "Modified",
-                    Location = $"Tags.{name}.InitialValue",
-                    Message = $"Tag '{name}' initial value changed",
-                    Value1 = tag1.InitialValue ?? "N/A",
-                    Value2 = tag2.InitialValue ?? "N/A"
-                });
-            }
-
-            if (tag1.Description != tag2.Description)
-            {
-                details.Add(new DiffDetail
-                {
-                    Type = "Info",
-                    Location = $"Tags.{name}.Description",
-                    Message = $"Tag '{name}' description changed",
-                    Value1 = tag1.Description ?? "",
-                    Value2 = tag2.Description ?? ""
-                });
-            }
-        }
     }
 
     private void CompareIoModules(IReadOnlyList<IoModuleInfo> modules1, IReadOnlyList<IoModuleInfo> modules2, List<DiffDetail> details)
     {
-        var names1 = modules1.Select(m => m.Name).ToHashSet();
-        var names2 = modules2.Select(m => m.Name).ToHashSet();
+        CompareKeyed(modules1, modules2, m => m.Name, m => m.ParentModule ?? m.Location ?? "", "IoModules", "I/O module",
+            m => $"Type: {m.Type}, Location: {m.Location ?? "N/A"}",
+            details,
+            (name, location, module1, module2) =>
+            {
+                AddIfChanged(details, location, "Type", $"I/O module '{name}' type changed", module1.Type, module2.Type);
+                if (module1.Location != module2.Location)
+                    AddIfChanged(details, location, "Location", $"I/O module '{name}' location changed",
+                        module1.Location ?? "N/A", module2.Location ?? "N/A");
+                if (module1.CatalogNumber != module2.CatalogNumber)
+                    AddIfChanged(details, location, "CatalogNumber", $"I/O module '{name}' catalog number changed",
+                        module1.CatalogNumber ?? "N/A", module2.CatalogNumber ?? "N/A");
+            });
+    }
 
-        // Find added modules
-        foreach (var name in names2.Except(names1))
+    /// <summary>
+    /// Matches items from both sides by key and reports additions, removals and,
+    /// via <paramref name="compareMatched"/>, modifications. Items are keyed by name;
+    /// when a name is not unique on either side, the key becomes
+    /// "{qualifier}.{name}" so same-named items in different scopes are compared
+    /// with each other instead of being collapsed. Lookups are O(1).
+    /// </summary>
+    private static void CompareKeyed<T>(
+        IReadOnlyList<T> items1,
+        IReadOnlyList<T> items2,
+        Func<T, string> nameOf,
+        Func<T, string> qualifierOf,
+        string section,
+        string noun,
+        Func<T, string> describe,
+        List<DiffDetail> details,
+        Action<string, string, T, T> compareMatched)
+    {
+        var duplicateNames = items1.GroupBy(nameOf).Where(g => g.Count() > 1).Select(g => g.Key)
+            .Concat(items2.GroupBy(nameOf).Where(g => g.Count() > 1).Select(g => g.Key))
+            .ToHashSet();
+
+        var keyed1 = BuildKeyed(items1, nameOf, qualifierOf, duplicateNames);
+        var keyed2 = BuildKeyed(items2, nameOf, qualifierOf, duplicateNames);
+
+        foreach (var (key, item) in keyed2)
         {
-            var module = modules2.First(m => m.Name == name);
+            if (keyed1.ContainsKey(key)) continue;
+            var name = nameOf(item);
             details.Add(new DiffDetail
             {
                 Type = "Added",
-                Location = $"IoModules.{name}",
-                Message = $"I/O module '{name}' added",
-                Value2 = $"Type: {module.Type}, Location: {module.Location ?? "N/A"}"
+                Location = $"{section}.{key}",
+                Message = $"{noun} '{name}' added",
+                Value2 = describe(item)
             });
         }
 
-        // Find removed modules
-        foreach (var name in names1.Except(names2))
+        foreach (var (key, item) in keyed1)
         {
-            var module = modules1.First(m => m.Name == name);
+            if (keyed2.ContainsKey(key)) continue;
+            var name = nameOf(item);
             details.Add(new DiffDetail
             {
                 Type = "Removed",
-                Location = $"IoModules.{name}",
-                Message = $"I/O module '{name}' removed",
-                Value1 = $"Type: {module.Type}, Location: {module.Location ?? "N/A"}"
+                Location = $"{section}.{key}",
+                Message = $"{noun} '{name}' removed",
+                Value1 = describe(item)
             });
         }
 
-        // Find modified modules
-        foreach (var name in names1.Intersect(names2))
+        foreach (var (key, item1) in keyed1)
         {
-            var module1 = modules1.First(m => m.Name == name);
-            var module2 = modules2.First(m => m.Name == name);
-
-            if (module1.Type != module2.Type)
+            if (keyed2.TryGetValue(key, out var item2))
             {
-                details.Add(new DiffDetail
-                {
-                    Type = "Modified",
-                    Location = $"IoModules.{name}.Type",
-                    Message = $"I/O module '{name}' type changed",
-                    Value1 = module1.Type,
-                    Value2 = module2.Type
-                });
-            }
-
-            if (module1.Location != module2.Location)
-            {
-                details.Add(new DiffDetail
-                {
-                    Type = "Modified",
-                    Location = $"IoModules.{name}.Location",
-                    Message = $"I/O module '{name}' location changed",
-                    Value1 = module1.Location ?? "N/A",
-                    Value2 = module2.Location ?? "N/A"
-                });
-            }
-
-            if (module1.CatalogNumber != module2.CatalogNumber)
-            {
-                details.Add(new DiffDetail
-                {
-                    Type = "Modified",
-                    Location = $"IoModules.{name}.CatalogNumber",
-                    Message = $"I/O module '{name}' catalog number changed",
-                    Value1 = module1.CatalogNumber ?? "N/A",
-                    Value2 = module2.CatalogNumber ?? "N/A"
-                });
+                compareMatched(nameOf(item1), $"{section}.{key}", item1, item2);
             }
         }
     }
+
+    // Ordered list of (key, item) plus an index, so output follows source order.
+    private static OrderedKeyed<T> BuildKeyed<T>(
+        IReadOnlyList<T> items, Func<T, string> nameOf, Func<T, string> qualifierOf, HashSet<string> duplicateNames)
+    {
+        var result = new OrderedKeyed<T>();
+        foreach (var item in items)
+        {
+            var name = nameOf(item);
+            var key = duplicateNames.Contains(name) ? $"{qualifierOf(item)}.{name}" : name;
+
+            // Exact duplicates (same qualifier and name) still get a stable, distinct key.
+            var unique = key;
+            for (int n = 2; result.ContainsKey(unique); n++)
+                unique = $"{key}#{n}";
+
+            result.Add(unique, item);
+        }
+        return result;
+    }
+
+    private sealed class OrderedKeyed<T> : IEnumerable<(string Key, T Item)>
+    {
+        private readonly List<(string Key, T Item)> _ordered = new();
+        private readonly Dictionary<string, T> _index = new(StringComparer.Ordinal);
+
+        public void Add(string key, T item)
+        {
+            _ordered.Add((key, item));
+            _index[key] = item;
+        }
+
+        public bool ContainsKey(string key) => _index.ContainsKey(key);
+
+        public bool TryGetValue(string key, out T item) => _index.TryGetValue(key, out item!);
+
+        public IEnumerator<(string Key, T Item)> GetEnumerator() => _ordered.GetEnumerator();
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    private static void AddIfChanged(List<DiffDetail> details, string location, string field, string message,
+        string? value1, string? value2)
+    {
+        if (value1 == value2) return;
+        details.Add(new DiffDetail
+        {
+            Type = "Modified",
+            Location = $"{location}.{field}",
+            Message = message,
+            Value1 = value1,
+            Value2 = value2
+        });
+    }
+
+    private static string Invariant(int value) => value.ToString(CultureInfo.InvariantCulture);
+
+    private static string? Invariant(double? value) => value?.ToString(CultureInfo.InvariantCulture);
 
     private void CompareMetadata(Dictionary<string, string> metadata1, Dictionary<string, string> metadata2, List<DiffDetail> details)
     {
@@ -608,9 +423,13 @@ public class PlcDiffService
         var modified = details.Count(d => d.Type == "Modified");
         var info = details.Count(d => d.Type == "Info");
 
-        if (added == 0 && removed == 0 && modified == 0 && info == 0)
+        if (added == 0 && removed == 0 && modified == 0)
         {
-            return "No differences found.";
+            // Informational changes (timestamps, descriptions, metadata) don't count
+            // as differences, matching HasDifferences.
+            return info == 0
+                ? "No differences found."
+                : $"No differences found ({info} informational).";
         }
 
         var parts = new List<string>();
@@ -619,7 +438,7 @@ public class PlcDiffService
         if (modified > 0) parts.Add($"{modified} modified");
         if (info > 0) parts.Add($"{info} informational");
 
-        return $"Found {details.Count} differences: {string.Join(", ", parts)}";
+        return $"Found {added + removed + modified} differences: {string.Join(", ", parts)}";
     }
 }
 

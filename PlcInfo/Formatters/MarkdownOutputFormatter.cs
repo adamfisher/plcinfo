@@ -127,7 +127,7 @@ public class MarkdownOutputFormatter : IOutputFormatter
             {
                 var rate = task.Rate.HasValue ? $"{task.Rate}ms" : "—";
                 var programs = string.Join(", ", task.ProgramNames);
-                sb.AppendLine($"| {task.Priority} | {task.Name} | {task.Type} | {rate} | {programs} |");
+                sb.AppendLine($"| {task.Priority} | {Cell(task.Name)} | {Cell(task.Type)} | {rate} | {Cell(programs)} |");
             }
             sb.AppendLine();
         }
@@ -181,7 +181,7 @@ public class MarkdownOutputFormatter : IOutputFormatter
             {
                 var title = !string.IsNullOrEmpty(block.Title) ? block.Title : "—";
                 var networks = block.NetworkCount > 0 ? block.NetworkCount.ToString() : "—";
-                sb.AppendLine($"| {block.Type} | {block.Name} | {block.Number} | {block.Language} | {networks} | {title} |");
+                sb.AppendLine($"| {Cell(block.Type)} | {Cell(block.Name)} | {block.Number} | {Cell(block.Language)} | {networks} | {Cell(title)} |");
             }
             sb.AppendLine();
         }
@@ -213,10 +213,7 @@ public class MarkdownOutputFormatter : IOutputFormatter
             var address = tag.Address ?? "-";
             var description = tag.Description ?? "-";
 
-            // Escape pipe characters in tag names
-            var escapedName = tag.Name.Replace("|", "\\|");
-
-            sb.AppendLine($"| {escapedName} | {tag.DataType} | {tag.Scope} | {description} | {address} |");
+            sb.AppendLine($"| {Cell(tag.Name)} | {Cell(tag.DataType)} | {Cell(tag.Scope)} | {Cell(description)} | {Cell(address)} |");
         }
 
         return sb.ToString();
@@ -345,7 +342,7 @@ public class MarkdownOutputFormatter : IOutputFormatter
 
             foreach (var lang in metrics.LanguageDistribution.OrderByDescending(kvp => kvp.Value))
             {
-                sb.AppendLine($"| {lang.Key} | {lang.Value} |");
+                sb.AppendLine($"| {Cell(lang.Key)} | {lang.Value} |");
             }
             sb.AppendLine();
         }
@@ -359,7 +356,7 @@ public class MarkdownOutputFormatter : IOutputFormatter
 
             foreach (var type in metrics.DataTypeDistribution.OrderByDescending(kvp => kvp.Value))
             {
-                sb.AppendLine($"| {type.Key} | {type.Value} |");
+                sb.AppendLine($"| {Cell(type.Key)} | {type.Value} |");
             }
             sb.AppendLine();
         }
@@ -432,7 +429,11 @@ public class MarkdownOutputFormatter : IOutputFormatter
 
         foreach (var detail in result.Details)
         {
-            sb.AppendLine($"- **{detail.Type}**: {detail.Message}");
+            // Include where and what changed, not just the message.
+            var line = $"- **{detail.Type}** `{detail.Location}`: {detail.Message}";
+            if (detail.Value1 != null || detail.Value2 != null)
+                line += $" (`{detail.Value1 ?? "(none)"}` → `{detail.Value2 ?? "(none)"}`)";
+            sb.AppendLine(line);
         }
 
         return sb.ToString();
@@ -479,5 +480,16 @@ public class MarkdownOutputFormatter : IOutputFormatter
             len /= 1024;
         }
         return $"{len:0.##} {sizes[order]}";
+    }
+
+    /// <summary>
+    /// Escapes a value for a Markdown table cell: '|' would start a new column and
+    /// a newline would end the row.
+    /// </summary>
+    internal static string Cell(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return string.Empty;
+        return value.Replace("|", "\\|").Replace("\r\n", "<br>").Replace("\n", "<br>").Replace("\r", "<br>");
     }
 }

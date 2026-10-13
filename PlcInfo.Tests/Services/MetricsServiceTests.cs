@@ -248,7 +248,7 @@ public class MetricsServiceTests
         result.TotalPrograms.Should().Be(project.Programs.Count);
         result.TotalRoutines.Should().Be(project.Programs.Sum(p => p.Routines.Count));
         result.TotalBlocks.Should().Be(project.Blocks.Count);
-        result.TotalTags.Should().Be(project.Tags.Count);
+        result.TotalTags.Should().Be(project.Tags.Count + project.Programs.Sum(p => p.LocalTags.Count));
         result.TotalIoModules.Should().Be(project.IoModules.Count);
         result.TotalTasks.Should().Be(project.Tasks.Count);
         result.ComplexityScore.Should().BeInRange(0, 100);

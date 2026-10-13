@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using PlcInfo.Models;
 
@@ -118,7 +119,7 @@ public class TwinCatParser : IPlcProjectParser
 
                 if (versionProperty != null)
                 {
-                    controller.FirmwareRevision = versionProperty.Attribute("Value")?.Value;
+                    controller.FirmwareRevision = versionProperty.Attribute("Value")?.Value ?? controller.FirmwareRevision;
                 }
             }
         }
@@ -349,17 +350,17 @@ public class TwinCatParser : IPlcProjectParser
 
         foreach (var plcProject in plcProjects)
         {
+            // Real .tsproj files reference the PLC project via PrjFilePath.
             var plcProjectFile = plcProject.Attribute("File")?.Value ??
+                                plcProject.Attribute("PrjFilePath")?.Value ??
                                 plcProject.Element("File")?.Value;
 
             if (!string.IsNullOrEmpty(plcProjectFile))
             {
                 // Parse the referenced PLC project file
-                var plcPath = Path.IsPathRooted(plcProjectFile)
-                    ? plcProjectFile
-                    : Path.Combine(projectDir, plcProjectFile);
+                var plcPath = ResolveProjectReference(projectDir, plcProjectFile);
 
-                if (File.Exists(plcPath))
+                if (plcPath != null && File.Exists(plcPath))
                 {
                     try
                     {
@@ -652,102 +653,228 @@ public class TwinCatParser : IPlcProjectParser
         return tags;
     }
 
-    private List<TagInfo> ParseDeclarationText(string declarationText, string scope)
+    private static readonly Regex VarSectionHeader = new(
+        @"^VAR(?<kind>_INPUT|_OUTPUT|_IN_OUT|_GLOBAL|_TEMP|_STAT|_INST|_EXTERNAL|_CONFIG)?(?<quals>(\s+(CONSTANT|RETAIN|PERSISTENT|NON_RETAIN))*)\s*$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    private static readonly Regex EndVar = new(
+        @"^END_VAR\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    /// <summary>
+    /// Resolves a project-relative reference (TwinCAT writes Windows separators) and
+    /// rejects anything that escapes the project directory, such as "../x" or rooted paths.
+    /// </summary>
+    internal static string? ResolveProjectReference(string projectDir, string reference)
+    {
+        var normalized = reference.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
+        if (Path.IsPathRooted(normalized))
+            return null;
+
+        var root = Path.GetFullPath(projectDir);
+        var full = Path.GetFullPath(Path.Combine(root, normalized));
+        var rootWithSep = root.EndsWith(Path.DirectorySeparatorChar) ? root : root + Path.DirectorySeparatorChar;
+        return full.StartsWith(rootWithSep, StringComparison.Ordinal) ? full : null;
+    }
+
+    internal static List<TagInfo> ParseDeclarationText(string declarationText, string scope)
     {
         var tags = new List<TagInfo>();
-
-        // Simple regex-based parsing of ST declarations
-        var lines = declarationText.Split('\n');
+        var cleaned = StripCommentsAndPragmas(declarationText);
         string currentSection = "";
+        var pending = new System.Text.StringBuilder();
 
-        foreach (var line in lines)
+        foreach (var rawLine in cleaned.Split('\n'))
         {
-            var trimmed = line.Trim();
+            var trimmed = rawLine.Trim();
+            if (trimmed.Length == 0)
+                continue;
 
-            // Detect variable sections
-            if (trimmed.StartsWith("VAR", StringComparison.OrdinalIgnoreCase))
+            var header = VarSectionHeader.Match(trimmed);
+            if (header.Success)
             {
-                if (trimmed.Contains("VAR_INPUT"))
-                    currentSection = "VAR_INPUT";
-                else if (trimmed.Contains("VAR_OUTPUT"))
-                    currentSection = "VAR_OUTPUT";
-                else if (trimmed.Contains("VAR_IN_OUT"))
-                    currentSection = "VAR_IN_OUT";
-                else if (trimmed.Contains("VAR_GLOBAL"))
-                    currentSection = "VAR_GLOBAL";
-                else if (trimmed.Contains("VAR_PERSISTENT"))
-                    currentSection = "VAR_PERSISTENT";
-                else
-                    currentSection = "VAR";
+                var kind = header.Groups["kind"].Value.ToUpperInvariant();
+                var persistent = header.Groups["quals"].Value.Contains("PERSISTENT", StringComparison.OrdinalIgnoreCase);
+                currentSection = kind.Length > 0 ? "VAR" + kind : persistent ? "VAR_PERSISTENT" : "VAR";
+                pending.Clear();
                 continue;
             }
 
-            if (trimmed == "END_VAR")
+            if (EndVar.IsMatch(trimmed))
             {
                 currentSection = "";
+                pending.Clear();
                 continue;
             }
 
-            // Parse variable declarations
-            if (!string.IsNullOrEmpty(currentSection) && trimmed.Contains(':'))
+            if (currentSection.Length == 0)
+                continue;
+
+            // Declarations may span lines; complete statements end with ';'.
+            pending.Append(trimmed).Append(' ');
+            foreach (var statement in TakeCompleteStatements(pending))
             {
-                var colonIndex = trimmed.IndexOf(':');
-                if (colonIndex > 0)
-                {
-                    var namePart = trimmed.Substring(0, colonIndex).Trim();
-                    var typePart = trimmed.Substring(colonIndex + 1).Trim();
-
-                    // Remove semicolon and comments
-                    var semicolonIndex = typePart.IndexOf(';');
-                    if (semicolonIndex >= 0)
-                    {
-                        typePart = typePart.Substring(0, semicolonIndex).Trim();
-                    }
-
-                    // Extract initialization value
-                    string? initialValue = null;
-                    var assignIndex = typePart.IndexOf(":=");
-                    if (assignIndex >= 0)
-                    {
-                        initialValue = typePart.Substring(assignIndex + 2).Trim();
-                        typePart = typePart.Substring(0, assignIndex).Trim();
-                    }
-
-                    // Check for AT declaration (direct address)
-                    string? address = null;
-                    if (namePart.Contains(" AT "))
-                    {
-                        var atIndex = namePart.IndexOf(" AT ");
-                        address = namePart.Substring(atIndex + 4).Trim();
-                        namePart = namePart.Substring(0, atIndex).Trim();
-                    }
-
-                    // Normalize usage to match expectations
-                    var usage = currentSection switch
-                    {
-                        "VAR_INPUT" => "Input",
-                        "VAR_OUTPUT" => "Output",
-                        "VAR_IN_OUT" => "InOut",
-                        _ => currentSection
-                    };
-
-                    var tag = new TagInfo
-                    {
-                        Name = namePart,
-                        DataType = typePart,
-                        Scope = scope,
-                        Usage = usage,
-                        InitialValue = initialValue,
-                        Address = address,
-                        IsIoTag = address?.StartsWith("%I") == true || address?.StartsWith("%Q") == true
-                    };
-
-                    tags.Add(tag);
-                }
+                tags.AddRange(ParseDeclarationStatement(statement, currentSection, scope));
             }
         }
 
         return tags;
+    }
+
+    private static IEnumerable<TagInfo> ParseDeclarationStatement(string statement, string section, string scope)
+    {
+        var colonIndex = IndexOutsideStrings(statement, ':', skipAssign: true);
+        if (colonIndex <= 0)
+            yield break;
+
+        var namePart = statement[..colonIndex].Trim();
+        var typePart = statement[(colonIndex + 1)..].Trim();
+
+        string? initialValue = null;
+        var assignIndex = typePart.IndexOf(":=", StringComparison.Ordinal);
+        if (assignIndex >= 0)
+        {
+            initialValue = typePart[(assignIndex + 2)..].Trim();
+            typePart = typePart[..assignIndex].Trim();
+        }
+
+        // Direct address: "bIn AT %IX0.0 : BOOL"
+        string? address = null;
+        var atMatch = Regex.Match(namePart, @"\s+AT\s+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (atMatch.Success)
+        {
+            address = namePart[(atMatch.Index + atMatch.Length)..].Trim();
+            namePart = namePart[..atMatch.Index].Trim();
+        }
+
+        var usage = section switch
+        {
+            "VAR_INPUT" => "Input",
+            "VAR_OUTPUT" => "Output",
+            "VAR_IN_OUT" => "InOut",
+            _ => section
+        };
+
+        // "a, b, c : BOOL;" declares three variables.
+        foreach (var name in namePart.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            yield return new TagInfo
+            {
+                Name = name,
+                DataType = typePart,
+                Scope = scope,
+                Usage = usage,
+                InitialValue = initialValue,
+                Address = address,
+                IsIoTag = address?.StartsWith("%I", StringComparison.OrdinalIgnoreCase) == true ||
+                          address?.StartsWith("%Q", StringComparison.OrdinalIgnoreCase) == true
+            };
+        }
+    }
+
+    /// <summary>
+    /// Removes (* *) and // comments and {pragmas} that are outside string literals,
+    /// keeping newlines so line structure survives.
+    /// </summary>
+    internal static string StripCommentsAndPragmas(string text)
+    {
+        var sb = new System.Text.StringBuilder(text.Length);
+        int i = 0;
+        while (i < text.Length)
+        {
+            var c = text[i];
+            var next = i + 1 < text.Length ? text[i + 1] : '\0';
+
+            if (c == '\'' || c == '"')
+            {
+                // Copy string literal verbatim ('' / $' escapes keep us inside it).
+                var quote = c;
+                sb.Append(c);
+                i++;
+                while (i < text.Length)
+                {
+                    var sc = text[i];
+                    sb.Append(sc);
+                    i++;
+                    if (sc == '$' && i < text.Length) { sb.Append(text[i]); i++; continue; }
+                    if (sc == quote) break;
+                }
+                continue;
+            }
+
+            if (c == '(' && next == '*')
+            {
+                var end = text.IndexOf("*)", i + 2, StringComparison.Ordinal);
+                var stop = end < 0 ? text.Length : end + 2;
+                AppendNewlines(sb, text, i, stop);
+                i = stop;
+                continue;
+            }
+
+            if (c == '/' && next == '/')
+            {
+                while (i < text.Length && text[i] != '\n') i++;
+                continue;
+            }
+
+            if (c == '{')
+            {
+                var end = text.IndexOf('}', i + 1);
+                var stop = end < 0 ? text.Length : end + 1;
+                AppendNewlines(sb, text, i, stop);
+                i = stop;
+                continue;
+            }
+
+            sb.Append(c);
+            i++;
+        }
+        return sb.ToString();
+
+        static void AppendNewlines(System.Text.StringBuilder sb, string text, int from, int to)
+        {
+            for (int k = from; k < to; k++)
+                if (text[k] == '\n') sb.Append('\n');
+        }
+    }
+
+    // Splits off every ';'-terminated statement (outside strings) and leaves the remainder buffered.
+    private static IEnumerable<string> TakeCompleteStatements(System.Text.StringBuilder buffer)
+    {
+        var text = buffer.ToString();
+        var results = new List<string>();
+        int start = 0;
+        int idx;
+        while ((idx = IndexOutsideStrings(text, ';', skipAssign: false, start)) >= 0)
+        {
+            var stmt = text[start..idx].Trim();
+            if (stmt.Length > 0) results.Add(stmt);
+            start = idx + 1;
+        }
+        buffer.Clear().Append(text[start..]);
+        return results;
+    }
+
+    private static int IndexOutsideStrings(string text, char target, bool skipAssign, int start = 0)
+    {
+        char quote = '\0';
+        for (int i = start; i < text.Length; i++)
+        {
+            var c = text[i];
+            if (quote != '\0')
+            {
+                if (c == '$') { i++; continue; }
+                if (c == quote) quote = '\0';
+                continue;
+            }
+            if (c == '\'' || c == '"') { quote = c; continue; }
+            if (c == target)
+            {
+                if (skipAssign && i + 1 < text.Length && text[i + 1] == '=')
+                    continue;
+                return i;
+            }
+        }
+        return -1;
     }
 
     private IEnumerable<ProgramInfo> ParsePousDirectly(IEnumerable<XElement> pous)
