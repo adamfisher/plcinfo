@@ -233,6 +233,37 @@ Rungs with pending or test online edits are skipped, with a note.
 
 Exit code is `0` if identical, `1` if differences are found, and `2` if a file could not be read or parsed (useful for CI/CD).
 
+#### `xref` - Cross-Reference
+
+Show where tags are read and written: rungs, Structured Text lines and networks. Writes are classified per instruction: coils (`OTE`/`OTL`/`OTU`), destinations of `MOV`/`COP`/math/`CPT`, timer and counter structures, and `:=` in ST.
+
+```bash
+plcinfo xref project.L5X                 # every reference
+plcinfo xref project.L5X Motor_Run       # one tag
+plcinfo xref project.L5X 'Conv*' --writes   # who sets the conveyor outputs?
+```
+
+#### `lint` - Check for Common Problems
+
+| Code | Severity | Rule |
+|---|---|---|
+| PLC001 | error | The same output is written by more than one `OTE`; only the last scanned one takes effect. |
+| PLC002 | error | `JSR`/`FOR`/`SFR`/`SFP` references a routine that doesn't exist. |
+| PLC003 | warning | Routine is never called (not main, fault, or a `JSR`/`FOR` target). |
+| PLC004 | warning | `AFI` (Always False) disables a rung, usually left over from testing. |
+| PLC005 | warning | Program-scoped tag is never used (program parameters are excluded). |
+| PLC006 | info | Controller-scoped tag isn't used in logic (it may still be used by an HMI or another controller). |
+| PLC007 | info | Routine is empty. |
+| PLC008 | warning | Task is inhibited or program is disabled. |
+| PLC009 | warning | Routine has pending or test online edits. |
+
+```bash
+plcinfo lint project.L5X
+plcinfo lint project.L5X --fail-on warning --ignore PLC006,PLC007   # CI gate
+```
+
+Exits with `1` when there are findings at or above `--fail-on` (`error` by default; also `warning`, `info`, `never`).
+
 #### `export` - Export to Neutral Format
 
 Convert project to a vendor-neutral JSON format for integration with other tools.

@@ -97,6 +97,30 @@ public class CommandLineTests : IDisposable
         json.ExitCode.Should().Be(ExitCodes.Usage);
     }
 
+    [Fact]
+    public async Task Lint_ExitStatusFollowsFailOn()
+    {
+        // The stub project has a disabled program: one PLC008 warning, no errors.
+        var parser = new StubParser(configure: p => p.Programs = new[]
+        {
+            new ProgramInfo { Name = "P", Properties = new Dictionary<string, string> { ["Disabled"] = "true" } }
+        });
+
+        (await Run(new LintCommand { FilePath = "x.test" }, parser)).ExitCode.Should().Be(ExitCodes.Success);
+        (await Run(new LintCommand { FilePath = "x.test", FailOn = "warning" }, parser)).ExitCode.Should().Be(ExitCodes.Error);
+        (await Run(new LintCommand { FilePath = "x.test", FailOn = "warning", Ignore = new[] { "PLC008" } }, parser)).ExitCode.Should().Be(ExitCodes.Success);
+        (await Run(new LintCommand { FilePath = "x.test", FailOn = "sometimes" }, parser)).ExitCode.Should().Be(ExitCodes.Usage);
+    }
+
+    [Fact]
+    public void Xref_TagIsOptionalPositional()
+    {
+        Parse<XrefCommand>("xref", "project.L5X").Tag.Should().BeNull();
+        var command = Parse<XrefCommand>("xref", "project.L5X", "Motor*", "--writes");
+        command.Tag.Should().Be("Motor*");
+        command.WritesOnly.Should().BeTrue();
+    }
+
     // ---- help, version and usage errors ----
 
     [Fact]
@@ -276,8 +300,13 @@ public class CommandLineTests : IDisposable
     private sealed class StubParser : IPlcProjectParser
     {
         private readonly string? _warning;
+        private readonly Action<PlcProject>? _configure;
 
-        public StubParser(string? warning = null) => _warning = warning;
+        public StubParser(string? warning = null, Action<PlcProject>? configure = null)
+        {
+            _warning = warning;
+            _configure = configure;
+        }
 
         public bool CanParse(string filePath) => filePath.EndsWith(".test", StringComparison.Ordinal);
 
@@ -287,6 +316,7 @@ public class CommandLineTests : IDisposable
             var project = new PlcProject { Vendor = "Test", Format = "Test", FilePath = filePath };
             if (_warning != null)
                 project.Metadata["Warnings"] = _warning;
+            _configure?.Invoke(project);
             return Task.FromResult(project);
         }
     }

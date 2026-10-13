@@ -9,7 +9,7 @@ namespace PlcInfo.Formatters;
 /// </summary>
 public class JsonOutputFormatter : IOutputFormatter
 {
-    private static readonly JsonSerializerOptions Options = new()
+    internal static readonly JsonSerializerOptions Options = new()
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
