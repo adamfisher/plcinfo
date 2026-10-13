@@ -99,7 +99,7 @@ public class YamlOutputFormatter : IOutputFormatter
     /// <inheritdoc/>
     public string FormatTags(PlcProject project, TagFilter? filter = null)
     {
-        var tags = FilterTags(project.Tags, filter).ToList();
+        var tags = FilterTags(TagFilter.AllTags(project), filter).ToList();
 
         var tagsData = new
         {

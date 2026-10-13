@@ -149,7 +149,7 @@ public class TextOutputFormatter : IOutputFormatter
     /// <inheritdoc/>
     public string FormatTags(PlcProject project, TagFilter? filter = null)
     {
-        var tags = FilterTags(project.Tags, filter);
+        var tags = FilterTags(TagFilter.AllTags(project), filter);
 
         var sb = new StringBuilder();
 

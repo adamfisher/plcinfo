@@ -146,6 +146,9 @@ plcinfo tags project.L5X --io-only
 # Filter by name
 plcinfo tags project.L5X --name-contains "Motor"
 
+# Tag list for Excel (CSV with a UTF-8 BOM when written to a file)
+plcinfo tags project.L5X --format csv --output tags.csv
+
 # Combine filters and export as JSON
 plcinfo tags project.L5X --scope controller --io-only --format json
 ```
@@ -284,7 +287,7 @@ plcinfo export project.L5X --compact
 
 | Option | Description |
 |---|---|
-| `-f`, `--format FORMAT` | Output format: `text` (default), `json`, `yaml`, `md`/`markdown`. `export` defaults to `json`. |
+| `-f`, `--format FORMAT` | Output format: `text` (default), `json`, `yaml`, `md`/`markdown`, or `csv` for tabular commands (`tags`, `io`, `search`, `diff`, `xref`, `lint`). `export` defaults to `json`. |
 | `-o`, `--output FILE` | Write the result to `FILE` instead of standard output. |
 | `-q`, `--quiet` | Don't print warnings (e.g. partially decoded files) on standard error. |
 | `--verbose` | Print extra diagnostics, including stack traces for errors. |
