@@ -1,0 +1,1650 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<project xmlns="http://www.plcopen.org/xml/tc6_0200">
+  <fileHeader companyName="" productName="CODESYS" productVersion="CODESYS V3.5 SP20 Patch 3" creationDateTime="2025-01-24T23:29:18.215425" />
+  <contentHeader name="CODESYS_HashTable_Struct_Example.project" modificationDateTime="2025-01-24T23:25:16.619379">
+    <coordinateInfo>
+      <fbd>
+        <scaling x="1" y="1" />
+      </fbd>
+      <ld>
+        <scaling x="1" y="1" />
+      </ld>
+      <sfc>
+        <scaling x="1" y="1" />
+      </sfc>
+    </coordinateInfo>
+    <addData>
+      <data name="http://www.3s-software.com/plcopenxml/projectinformation" handleUnknown="implementation">
+        <ProjectInformation />
+      </data>
+    </addData>
+  </contentHeader>
+  <types>
+    <dataTypes />
+    <pous />
+  </types>
+  <instances>
+    <configurations>
+      <configuration name="Device">
+        <resource name="Application">
+          <task name="MainTask" interval="PT0.02S" priority="1">
+            <pouInstance name="PRG_ProductSetting" typeName="">
+              <documentation>
+                <xhtml xmlns="http://www.w3.org/1999/xhtml" />
+              </documentation>
+            </pouInstance>
+            <addData>
+              <data name="http://www.3s-software.com/plcopenxml/tasksettings" handleUnknown="implementation">
+                <TaskSettings KindOfTask="Cyclic" Interval="t#20ms" IntervalUnit="ms" WithinSPSTimeSlicing="true">
+                  <Watchdog Enabled="false" TimeUnit="ms" Sensitivity="1" />
+                </TaskSettings>
+              </data>
+              <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+                <ObjectId>90415153-d61e-46df-a5d4-a19ae283ef1b</ObjectId>
+              </data>
+            </addData>
+          </task>
+          <task name="VISU_TASK" interval="PT0.1S" priority="31">
+            <pouInstance name="VisuElems.Visu_Prg" typeName="">
+              <documentation>
+                <xhtml xmlns="http://www.w3.org/1999/xhtml" />
+              </documentation>
+            </pouInstance>
+            <addData>
+              <data name="http://www.3s-software.com/plcopenxml/tasksettings" handleUnknown="implementation">
+                <TaskSettings KindOfTask="Cyclic" Interval="100" IntervalUnit="ms" WithinSPSTimeSlicing="true">
+                  <Watchdog Enabled="false" TimeUnit="ms" />
+                </TaskSettings>
+              </data>
+              <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+                <ObjectId>cc00ce99-a5d6-4bbb-ab55-26f8886214e6</ObjectId>
+              </data>
+            </addData>
+          </task>
+          <globalVars name="GVL" constant="true">
+            <variable name="MAX_PRODUCT_NUM">
+              <type>
+                <UINT />
+              </type>
+              <initialValue>
+                <simpleValue value="100" />
+              </initialValue>
+            </variable>
+            <addData>
+              <data name="http://www.3s-software.com/plcopenxml/attributes" handleUnknown="implementation">
+                <Attributes>
+                  <Attribute Name="qualified_only" Value="" />
+                </Attributes>
+              </data>
+              <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+                <ObjectId>a55d3702-587c-4891-9905-3d518c25ff95</ObjectId>
+              </data>
+            </addData>
+          </globalVars>
+          <addData>
+            <data name="http://www.3s-software.com/plcopenxml/datatype" handleUnknown="implementation">
+              <dataType name="ST_Product">
+                <baseType>
+                  <struct>
+                    <variable name="id">
+                      <type>
+                        <string />
+                      </type>
+                      <documentation>
+                        <xhtml xmlns="http://www.w3.org/1999/xhtml">製品ID</xhtml>
+                      </documentation>
+                    </variable>
+                    <variable name="name">
+                      <type>
+                        <string />
+                      </type>
+                      <documentation>
+                        <xhtml xmlns="http://www.w3.org/1999/xhtml">製品名</xhtml>
+                      </documentation>
+                    </variable>
+                    <variable name="width">
+                      <type>
+                        <UINT />
+                      </type>
+                      <documentation>
+                        <xhtml xmlns="http://www.w3.org/1999/xhtml">幅</xhtml>
+                      </documentation>
+                    </variable>
+                    <variable name="length">
+                      <type>
+                        <UINT />
+                      </type>
+                      <documentation>
+                        <xhtml xmlns="http://www.w3.org/1999/xhtml">長さ</xhtml>
+                      </documentation>
+                    </variable>
+                    <variable name="height">
+                      <type>
+                        <UINT />
+                      </type>
+                      <documentation>
+                        <xhtml xmlns="http://www.w3.org/1999/xhtml">高さ</xhtml>
+                      </documentation>
+                    </variable>
+                  </struct>
+                </baseType>
+                <addData>
+                  <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+                    <ObjectId>4a308fa6-0529-4b30-a44d-deb4170bf4cd</ObjectId>
+                  </data>
+                </addData>
+              </dataType>
+            </data>
+            <data name="http://www.3s-software.com/plcopenxml/datatype" handleUnknown="implementation">
+              <dataType name="E_ProductSettingState">
+                <baseType>
+                  <enum>
+                    <values>
+                      <value name="Initial" value="0" />
+                      <value name="Create" />
+                      <value name="Edit" />
+                    </values>
+                  </enum>
+                </baseType>
+                <addData>
+                  <data name="http://www.3s-software.com/plcopenxml/enumvaluedocumentation" handleUnknown="implementation">
+                    <EnumValueDocumentation>
+                      <EnumValue>
+                        <Name>Create</Name>
+                        <Documentation>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml">新規作成</xhtml>
+                        </Documentation>
+                      </EnumValue>
+                      <EnumValue>
+                        <Name>Edit</Name>
+                        <Documentation>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml">編集</xhtml>
+                        </Documentation>
+                      </EnumValue>
+                    </EnumValueDocumentation>
+                  </data>
+                  <data name="http://www.3s-software.com/plcopenxml/attributes" handleUnknown="implementation">
+                    <Attributes>
+                      <Attribute Name="qualified_only" Value="" />
+                      <Attribute Name="strict" Value="" />
+                    </Attributes>
+                  </data>
+                  <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+                    <ObjectId>91ac85cc-ab0a-45cb-9736-60be58abba06</ObjectId>
+                  </data>
+                </addData>
+              </dataType>
+            </data>
+            <data name="http://www.3s-software.com/plcopenxml/interface" handleUnknown="implementation">
+              <Interface name="IProductElement" ObjectId="0f107fc9-3480-4e3f-82cd-f8e11f29b270">
+                <Properties>
+                  <Property name="ProductValue" ObjectId="a192ae19-3ba8-40e2-a449-4dfa0b68b63e">
+                    <interface>
+                      <returnType>
+                        <derived name="ST_Product" />
+                      </returnType>
+                    </interface>
+                    <SetAccessor />
+                    <GetAccessor />
+                    <addData />
+                  </Property>
+                </Properties>
+                <Inheritance>
+                  <Extends>COL.IElement</Extends>
+                </Inheritance>
+                <addData />
+              </Interface>
+            </data>
+            <data name="http://www.3s-software.com/plcopenxml/pou" handleUnknown="implementation">
+              <pou name="PRG_ProductSetting" pouType="program">
+                <interface>
+                  <localVars>
+                    <variable name="HashTableFactory">
+                      <type>
+                        <derived name="COL.HashTableFactory" />
+                      </type>
+                      <documentation>
+                        <xhtml xmlns="http://www.w3.org/1999/xhtml"> Factory to create a hash table on heap memory.</xhtml>
+                      </documentation>
+                    </variable>
+                    <variable name="productMap">
+                      <type>
+                        <derived name="COL.IMap3" />
+                      </type>
+                      <initialValue>
+                        <simpleValue value="HashTableFactory.Create(udiMaxElements := 100)" />
+                      </initialValue>
+                      <documentation>
+                        <xhtml xmlns="http://www.w3.org/1999/xhtml"> Creates a hashtable on heap memory. NOTE: Collections that have been created with this Factory are not online change safe.	</xhtml>
+                      </documentation>
+                    </variable>
+                    <variable name="productElementFactory">
+                      <type>
+                        <derived name="FB_ProductElementFactory" />
+                      </type>
+                    </variable>
+                    <variable name="productNameArray">
+                      <type>
+                        <array>
+                          <dimension lower="0" upper="GVL.MAX_PRODUCT_NUM" />
+                          <baseType>
+                            <string />
+                          </baseType>
+                        </array>
+                      </type>
+                      <documentation>
+                        <xhtml xmlns="http://www.w3.org/1999/xhtml">Visualizaton用</xhtml>
+                      </documentation>
+                    </variable>
+                    <variable name="pnArrayLastIndex">
+                      <type>
+                        <UINT />
+                      </type>
+                      <initialValue>
+                        <simpleValue value="0" />
+                      </initialValue>
+                      <documentation>
+                        <xhtml xmlns="http://www.w3.org/1999/xhtml">次に挿入する位置</xhtml>
+                      </documentation>
+                    </variable>
+                    <variable name="state">
+                      <type>
+                        <derived name="E_ProductSettingState" />
+                      </type>
+                      <initialValue>
+                        <simpleValue value="E_ProductSettingState.Initial" />
+                      </initialValue>
+                    </variable>
+                    <variable name="selectedProductIndex">
+                      <type>
+                        <UINT />
+                      </type>
+                    </variable>
+                    <variable name="selectedProductId">
+                      <type>
+                        <string />
+                      </type>
+                    </variable>
+                    <variable name="visuProduct">
+                      <type>
+                        <derived name="ST_Product" />
+                      </type>
+                    </variable>
+                    <variable name="msgBoxMessage">
+                      <type>
+                        <string />
+                      </type>
+                      <documentation>
+                        <xhtml xmlns="http://www.w3.org/1999/xhtml">メッセージBOX用</xhtml>
+                      </documentation>
+                    </variable>
+                    <variable name="msgBoxEnabled">
+                      <type>
+                        <BOOL />
+                      </type>
+                    </variable>
+                    <variable name="msgBoxTap">
+                      <type>
+                        <BOOL />
+                      </type>
+                    </variable>
+                    <variable name="tmpValues">
+                      <type>
+                        <array>
+                          <dimension lower="0" upper="GVL.MAX_PRODUCT_NUM" />
+                          <baseType>
+                            <derived name="ST_Product" />
+                          </baseType>
+                        </array>
+                      </type>
+                      <documentation>
+                        <xhtml xmlns="http://www.w3.org/1999/xhtml">デバッグ用</xhtml>
+                      </documentation>
+                    </variable>
+                    <variable name="iterator">
+                      <type>
+                        <derived name="COL.ListIterator" />
+                      </type>
+                    </variable>
+                    <variable name="itfElement">
+                      <type>
+                        <derived name="COL.IElement" />
+                      </type>
+                    </variable>
+                    <variable name="itfProductElement">
+                      <type>
+                        <derived name="IProductElement" />
+                      </type>
+                    </variable>
+                    <variable name="xResult">
+                      <type>
+                        <BOOL />
+                      </type>
+                    </variable>
+                    <variable name="i">
+                      <type>
+                        <UINT />
+                      </type>
+                      <documentation>
+                        <xhtml xmlns="http://www.w3.org/1999/xhtml">一時変数</xhtml>
+                      </documentation>
+                    </variable>
+                  </localVars>
+                </interface>
+                <body>
+                  <ST>
+                    <xhtml xmlns="http://www.w3.org/1999/xhtml">//デバッグ用
+i:=0;
+productMap.Values(iterator);
+WHILE iterator.HasNext() DO
+	iterator.Next(itfElement=&gt;itfElement);
+	xResult := __QUERYINTERFACE(itfElement, itfProductElement);
+	tmpValues[i] := itfProductElement.ProductValue;
+	i:=i+1;
+END_WHILE
+
+//メッセージBOXを閉じる
+IF msgBoxTap THEN
+	msgBoxEnabled := FALSE;
+	msgBoxTap := FALSE;
+END_IF
+
+
+//現在状態ごとの処理
+IF state = E_ProductSettingState.Initial AND pnArrayLastIndex &lt;&gt; 0 THEN
+	selectedProductIndex := 0;
+	UpdateSelectedProduct();
+	state := E_ProductSettingState.Edit;
+END_IF
+	
+</xhtml>
+                  </ST>
+                </body>
+                <addData>
+                  <data name="http://www.3s-software.com/plcopenxml/method" handleUnknown="implementation">
+                    <Method name="DeleteProductFromNameArray" ObjectId="eaa9636a-ec93-4868-a7b1-31f89261d8ee">
+                      <interface>
+                        <inputVars>
+                          <variable name="info">
+                            <type>
+                              <derived name="ST_Product" />
+                            </type>
+                          </variable>
+                        </inputVars>
+                        <localVars>
+                          <variable name="i">
+                            <type>
+                              <UINT />
+                            </type>
+                          </variable>
+                          <variable name="deleteIndex">
+                            <type>
+                              <UINT />
+                            </type>
+                          </variable>
+                          <variable name="productId">
+                            <type>
+                              <string />
+                            </type>
+                          </variable>
+                        </localVars>
+                      </interface>
+                      <body>
+                        <ST>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml">IF pnArrayLastIndex &gt; GVL.MAX_PRODUCT_NUM THEN
+	RETURN;
+END_IF
+
+
+IF pnArrayLastIndex &lt;&gt; 0 THEN
+	//昇順にソートされている前提で挿入個所を探索する
+	FOR deleteIndex:=0 TO pnArrayLastIndex-1 DO
+		productId := GetIdFromProductName(ADR(productNameArray[deleteIndex]));
+		IF info.id = productId THEN
+			productNameArray[deleteIndex] := '';
+			EXIT;
+		END_IF
+	END_FOR
+	
+	//空いた箇所を詰める
+	IF deleteIndex &lt;&gt; pnArrayLastIndex-1 THEN
+		FOR i:=deleteIndex TO pnArrayLastIndex-1 DO
+			productNameArray[i] := productNameArray[i+1];
+		END_FOR
+	END_IF
+	
+	productNameArray[pnArrayLastIndex-1] := '';
+	pnArrayLastIndex := pnArrayLastIndex - 1;
+	
+END_IF
+</xhtml>
+                        </ST>
+                      </body>
+                      <addData />
+                    </Method>
+                  </data>
+                  <data name="http://www.3s-software.com/plcopenxml/method" handleUnknown="implementation">
+                    <Method name="UpdateProductToNameArray" ObjectId="0f832052-5da8-4b66-9c11-0f0bacc2f506">
+                      <interface>
+                        <inputVars>
+                          <variable name="info">
+                            <type>
+                              <derived name="ST_Product" />
+                            </type>
+                          </variable>
+                        </inputVars>
+                        <localVars>
+                          <variable name="concatStr">
+                            <type>
+                              <string />
+                            </type>
+                          </variable>
+                          <variable name="i">
+                            <type>
+                              <UINT />
+                            </type>
+                          </variable>
+                          <variable name="productId">
+                            <type>
+                              <string />
+                            </type>
+                          </variable>
+                        </localVars>
+                      </interface>
+                      <body>
+                        <ST>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml">IF pnArrayLastIndex &gt; GVL.MAX_PRODUCT_NUM THEN
+	RETURN;
+END_IF
+
+concatStr := CONCAT(info.id, '.');
+concatStr := CONCAT(concatStr, info.name);
+
+IF pnArrayLastIndex &lt;&gt; 0 THEN
+	//昇順にソートされている前提で挿入個所を探索する
+	FOR i:=0 TO pnArrayLastIndex-1 DO
+		productId := GetIdFromProductName(ADR(productNameArray[i]));
+		IF info.id = productId THEN
+			productNameArray[i] := concatStr;
+			EXIT;
+		END_IF
+	END_FOR
+END_IF
+</xhtml>
+                        </ST>
+                      </body>
+                      <addData />
+                    </Method>
+                  </data>
+                  <data name="http://www.3s-software.com/plcopenxml/method" handleUnknown="implementation">
+                    <Method name="DeleteProduct" ObjectId="bc40a37c-41e3-40d9-a78a-55870e9f34ec">
+                      <interface>
+                        <returnType>
+                          <BOOL />
+                        </returnType>
+                        <localVars>
+                          <variable name="eError">
+                            <type>
+                              <derived name="COL.COLLECTION_ERROR" />
+                            </type>
+                          </variable>
+                          <variable name="StringElementFactory">
+                            <type>
+                              <derived name="COL.StringElementFactory" />
+                            </type>
+                            <documentation>
+                              <xhtml xmlns="http://www.w3.org/1999/xhtml"> Factory to create StringElements on heap memory.</xhtml>
+                            </documentation>
+                          </variable>
+                          <variable name="concatStr">
+                            <type>
+                              <string />
+                            </type>
+                          </variable>
+                        </localVars>
+                      </interface>
+                      <body>
+                        <ST>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml">//表示中のデータを削除
+eError := productMap.RemoveByKey(itfKey := StringElementFactory.Create(sValue := visuProduct.id));
+
+//削除成功時
+IF eError = COL.COLLECTION_ERROR.NO_ERROR THEN
+	concatStr := CONCAT(visuProduct.id, '.');
+	concatStr := CONCAT(concatStr, visuProduct.name);
+	concatStr := CONCAT(concatStr, ' を削除しました');
+	msgBoxMessage := concatStr;
+	msgBoxEnabled := TRUE;
+	//表示用Listの更新
+	DeleteProductFromNameArray(visuProduct);
+	ClearVisuProduct();
+	state := E_ProductSettingState.Initial;
+	
+ELSE
+	state := E_ProductSettingState.Initial;
+END_IF;
+</xhtml>
+                        </ST>
+                      </body>
+                      <addData />
+                    </Method>
+                  </data>
+                  <data name="http://www.3s-software.com/plcopenxml/method" handleUnknown="implementation">
+                    <Method name="Save" ObjectId="21900fc4-6a8b-4ee3-92e5-25ca593b3df4">
+                      <interface>
+                        <returnType>
+                          <BOOL />
+                        </returnType>
+                        <localVars>
+                          <variable name="eError">
+                            <type>
+                              <derived name="COL.COLLECTION_ERROR" />
+                            </type>
+                          </variable>
+                          <variable name="contains">
+                            <type>
+                              <BOOL />
+                            </type>
+                          </variable>
+                          <variable name="StringElementFactory">
+                            <type>
+                              <derived name="COL.StringElementFactory" />
+                            </type>
+                            <documentation>
+                              <xhtml xmlns="http://www.w3.org/1999/xhtml"> Factory to create StringElements on heap memory.</xhtml>
+                            </documentation>
+                          </variable>
+                          <variable name="keyElement">
+                            <type>
+                              <derived name="COL.IStringElement" />
+                            </type>
+                          </variable>
+                          <variable name="concatStr">
+                            <type>
+                              <string />
+                            </type>
+                          </variable>
+                        </localVars>
+                      </interface>
+                      <body>
+                        <ST>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml">keyElement := StringElementFactory.Create(sValue := visuProduct.id);
+eError := productMap.ContainsKey(itfKey:=keyElement, xResult=&gt;contains);
+
+CASE state OF
+	//更新時
+	E_ProductSettingState.Edit:
+		IF contains THEN
+			
+			eError := productMap.RemoveByKey(itfKey := keyElement);
+			eError := productMap.AddKeyValuePair(itfKey := keyElement, itfValue := productElementFactory.Create(visuProduct));
+			
+			IF eError = COL.COLLECTION_ERROR.NO_ERROR THEN
+				concatStr := CONCAT(visuProduct.id, '.');
+				concatStr := CONCAT(concatStr, visuProduct.name);
+				concatStr := CONCAT(concatStr, ' を更新しました');
+				msgBoxMessage := concatStr;
+				msgBoxEnabled := TRUE;
+				UpdateProductToNameArray(visuProduct);
+			ELSE
+				msgBoxMessage := '更新に失敗しました。';
+				msgBoxEnabled := TRUE;	
+			END_IF
+		END_IF
+	
+	//新規追加時
+	E_ProductSettingState.Create:
+		IF pnArrayLastIndex &gt; GVL.MAX_PRODUCT_NUM-1 THEN
+			msgBoxMessage := '登録可能な製品数の上限に達しています。';
+			msgBoxEnabled := TRUE;
+			RETURN;
+		END_IF
+		
+		IF contains THEN
+			msgBoxMessage := '既に同じIDが登録されています。別のIDをご使用ください。';
+			msgBoxEnabled := TRUE;
+			RETURN;
+		END_IF
+	
+		eError := productMap.AddKeyValuePair(itfKey := keyElement, itfValue := productElementFactory.Create(visuProduct));
+	
+		IF eError = COL.COLLECTION_ERROR.NO_ERROR THEN
+			concatStr := CONCAT(visuProduct.id, '.');
+			concatStr := CONCAT(concatStr, visuProduct.name);
+			concatStr := CONCAT(concatStr, ' を新規で追加しました');
+			msgBoxMessage := concatStr;
+			msgBoxEnabled := TRUE;
+			//表示用Listの更新
+			selectedProductIndex := InsertProductToNameArray(visuProduct);
+			
+			state := E_ProductSettingState.Edit;
+			
+		ELSE
+			msgBoxMessage := '新規追加に失敗しました。';
+			msgBoxEnabled := TRUE;
+			state := E_ProductSettingState.Initial;
+		END_IF
+			
+END_CASE
+
+</xhtml>
+                        </ST>
+                      </body>
+                      <addData />
+                    </Method>
+                  </data>
+                  <data name="http://www.3s-software.com/plcopenxml/method" handleUnknown="implementation">
+                    <Method name="InsertProductToNameArray" ObjectId="3f71a655-5904-4832-9089-01ece8fe8137">
+                      <interface>
+                        <returnType>
+                          <UINT />
+                        </returnType>
+                        <inputVars>
+                          <variable name="info">
+                            <type>
+                              <derived name="ST_Product" />
+                            </type>
+                          </variable>
+                        </inputVars>
+                        <localVars>
+                          <variable name="concatStr">
+                            <type>
+                              <string />
+                            </type>
+                          </variable>
+                          <variable name="insertIndex">
+                            <type>
+                              <UINT />
+                            </type>
+                            <initialValue>
+                              <simpleValue value="0" />
+                            </initialValue>
+                            <documentation>
+                              <xhtml xmlns="http://www.w3.org/1999/xhtml">挿入個所のインデックス</xhtml>
+                            </documentation>
+                          </variable>
+                          <variable name="i">
+                            <type>
+                              <UINT />
+                            </type>
+                          </variable>
+                        </localVars>
+                      </interface>
+                      <body>
+                        <ST>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml">IF pnArrayLastIndex &gt; GVL.MAX_PRODUCT_NUM-1 THEN
+	RETURN;
+END_IF
+
+concatStr := CONCAT(info.id, '.');
+concatStr := CONCAT(concatStr, info.name);
+
+
+IF pnArrayLastIndex &lt;&gt; 0 THEN
+	//昇順にソートされている前提で挿入個所を探索する
+	FOR insertIndex:=0 TO pnArrayLastIndex-1 DO
+		IF concatStr &lt; productNameArray[insertIndex] THEN
+			EXIT;
+		END_IF
+	END_FOR
+
+	//挿入個所をあけるために1つずつずらす
+	IF insertIndex &lt;&gt; pnArrayLastIndex THEN
+		FOR i:=pnArrayLastIndex TO insertIndex+1 DO
+			productNameArray[i] := productNameArray[i-1];
+		END_FOR	
+	END_IF
+END_IF
+
+productNameArray[insertIndex] := concatStr;
+pnArrayLastIndex := pnArrayLastIndex + 1;
+
+InsertProductToNameArray := insertIndex;</xhtml>
+                        </ST>
+                      </body>
+                      <addData />
+                    </Method>
+                  </data>
+                  <data name="http://www.3s-software.com/plcopenxml/method" handleUnknown="implementation">
+                    <Method name="UpdateSelectedProduct" ObjectId="1e296f28-e4d4-4161-beb8-00546c1938ca">
+                      <interface>
+                        <localVars>
+                          <variable name="itfStringKey">
+                            <type>
+                              <derived name="COL.IStringElement" />
+                            </type>
+                          </variable>
+                          <variable name="itfIInstance">
+                            <type>
+                              <derived name="FBF.IInstance" />
+                            </type>
+                          </variable>
+                          <variable name="eError">
+                            <type>
+                              <derived name="COL.COLLECTION_ERROR" />
+                            </type>
+                          </variable>
+                          <variable name="itfElement">
+                            <type>
+                              <derived name="COL.IElement" />
+                            </type>
+                          </variable>
+                          <variable name="itfProductElement">
+                            <type>
+                              <derived name="IProductElement" />
+                            </type>
+                          </variable>
+                          <variable name="selectedProductName">
+                            <type>
+                              <string />
+                            </type>
+                          </variable>
+                          <variable name="StringElementFactory">
+                            <type>
+                              <derived name="COL.StringElementFactory" />
+                            </type>
+                            <documentation>
+                              <xhtml xmlns="http://www.w3.org/1999/xhtml"> Factory to create StringElements on heap memory.</xhtml>
+                            </documentation>
+                          </variable>
+                          <variable name="xResult">
+                            <type>
+                              <BOOL />
+                            </type>
+                          </variable>
+                        </localVars>
+                      </interface>
+                      <body>
+                        <ST>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml">selectedProductName := productNameArray[selectedProductIndex];
+selectedProductId := GetIdFromProductName(ADR(selectedProductName));
+visuProduct := GetProductInfo(selectedProductId);</xhtml>
+                        </ST>
+                      </body>
+                      <addData />
+                    </Method>
+                  </data>
+                  <data name="http://www.3s-software.com/plcopenxml/method" handleUnknown="implementation">
+                    <Method name="TransToCreateMode" ObjectId="91ce8b48-7087-41b8-bc58-04e64a89e122">
+                      <interface />
+                      <body>
+                        <ST>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml">state := E_ProductSettingState.Create;
+selectedProductIndex := pnArrayLastIndex;
+
+ClearVisuProduct();</xhtml>
+                        </ST>
+                      </body>
+                      <addData />
+                    </Method>
+                  </data>
+                  <data name="http://www.3s-software.com/plcopenxml/method" handleUnknown="implementation">
+                    <Method name="CancelCreate" ObjectId="beba4fda-f736-41df-b7b8-944a138c459b">
+                      <interface />
+                      <body>
+                        <ST>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml">state := E_ProductSettingState.Initial;
+selectedProductIndex := 0;
+UpdateSelectedProduct();</xhtml>
+                        </ST>
+                      </body>
+                      <addData />
+                    </Method>
+                  </data>
+                  <data name="http://www.3s-software.com/plcopenxml/method" handleUnknown="implementation">
+                    <Method name="SaveAs" ObjectId="7990b318-dd86-4b2d-8f87-df677405403f">
+                      <interface />
+                      <body>
+                        <ST>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml">state := E_ProductSettingState.Create;
+selectedProductIndex := pnArrayLastIndex;</xhtml>
+                        </ST>
+                      </body>
+                      <addData />
+                    </Method>
+                  </data>
+                  <data name="http://www.3s-software.com/plcopenxml/method" handleUnknown="implementation">
+                    <Method name="ClearVisuProduct" ObjectId="0f2604f7-086c-491c-a423-120cf29ed69c">
+                      <interface />
+                      <body>
+                        <ST>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml">visuProduct.height := 0;
+visuProduct.id := '';
+visuProduct.length := 0;
+visuProduct.name := '';
+visuProduct.width := 0;</xhtml>
+                        </ST>
+                      </body>
+                      <addData />
+                    </Method>
+                  </data>
+                  <data name="http://www.3s-software.com/plcopenxml/method" handleUnknown="implementation">
+                    <Method name="GetProductInfo" ObjectId="6a8201df-e0f0-437f-ae37-1e590781f585">
+                      <interface>
+                        <returnType>
+                          <derived name="ST_Product" />
+                        </returnType>
+                        <inputVars>
+                          <variable name="id">
+                            <type>
+                              <string />
+                            </type>
+                          </variable>
+                        </inputVars>
+                        <localVars>
+                          <variable name="itfStringKey">
+                            <type>
+                              <derived name="COL.IStringElement" />
+                            </type>
+                          </variable>
+                          <variable name="itfIInstance">
+                            <type>
+                              <derived name="FBF.IInstance" />
+                            </type>
+                          </variable>
+                          <variable name="eError">
+                            <type>
+                              <derived name="COL.COLLECTION_ERROR" />
+                            </type>
+                          </variable>
+                          <variable name="itfElement">
+                            <type>
+                              <derived name="COL.IElement" />
+                            </type>
+                          </variable>
+                          <variable name="itfProductElement">
+                            <type>
+                              <derived name="IProductElement" />
+                            </type>
+                          </variable>
+                          <variable name="StringElementFactory">
+                            <type>
+                              <derived name="COL.StringElementFactory" />
+                            </type>
+                            <documentation>
+                              <xhtml xmlns="http://www.w3.org/1999/xhtml"> Factory to create StringElements on heap memory.</xhtml>
+                            </documentation>
+                          </variable>
+                          <variable name="xResult">
+                            <type>
+                              <BOOL />
+                            </type>
+                          </variable>
+                        </localVars>
+                      </interface>
+                      <body>
+                        <ST>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml">//MapからProductインスタンスを取得
+itfStringKey := StringElementFactory.Create(sValue := id);
+eError := productMap.GetElementByKey(itfKey := itfStringKey, itfValue =&gt; itfElement);
+IF eError &lt;&gt; COL.COLLECTION_ERROR.NO_ERROR THEN
+	RETURN;
+END_IF
+
+//キーの確認
+xResult := __QUERYINTERFACE(itfStringKey, itfIInstance);
+IF xResult THEN
+	// Remove the temporary key
+	itfIInstance.Dispose();
+END_IF
+
+//IElement形式からIProductElementに変換
+xResult := __QUERYINTERFACE(itfElement, itfProductElement);
+IF xResult THEN
+	GetProductInfo := itfProductElement.ProductValue;
+END_IF</xhtml>
+                        </ST>
+                      </body>
+                      <addData />
+                    </Method>
+                  </data>
+                  <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+                    <ObjectId>4554cb08-a461-43ac-b47d-caffbf807068</ObjectId>
+                  </data>
+                </addData>
+              </pou>
+            </data>
+            <data name="http://www.3s-software.com/plcopenxml/pou" handleUnknown="implementation">
+              <pou name="FB_Product" pouType="functionBlock">
+                <interface>
+                  <inputVars>
+                    <variable name="info">
+                      <type>
+                        <derived name="ST_PRODUCT" />
+                      </type>
+                    </variable>
+                  </inputVars>
+                  <addData>
+                    <data name="http://www.3s-software.com/plcopenxml/pouinheritance" handleUnknown="implementation">
+                      <Inheritance>
+                        <Extends>FBF.InstanceData</Extends>
+                      </Inheritance>
+                    </data>
+                    <data name="http://www.3s-software.com/plcopenxml/attributes" handleUnknown="implementation">
+                      <Attributes>
+                        <Attribute Name="enable_dynamic_creation" Value="" />
+                        <Attribute Name="hide" Value="" />
+                      </Attributes>
+                    </data>
+                  </addData>
+                </interface>
+                <body>
+                  <ST>
+                    <xhtml xmlns="http://www.w3.org/1999/xhtml">(* !! Do not add any executable code here !! *)
+SUPER^();</xhtml>
+                  </ST>
+                </body>
+                <addData>
+                  <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+                    <ObjectId>447c3c92-52a4-4dfe-a148-37d570a4e483</ObjectId>
+                  </data>
+                </addData>
+              </pou>
+            </data>
+            <data name="http://www.3s-software.com/plcopenxml/pou" handleUnknown="implementation">
+              <pou name="FB_ProductElement" pouType="functionBlock">
+                <interface>
+                  <inputVars>
+                    <variable name="_product">
+                      <type>
+                        <derived name="ST_Product" />
+                      </type>
+                      <addData>
+                        <data name="http://www.3s-software.com/plcopenxml/attributes" handleUnknown="implementation">
+                          <Attributes>
+                            <Attribute Name="input_constant" Value="" />
+                          </Attributes>
+                        </data>
+                      </addData>
+                    </variable>
+                  </inputVars>
+                  <addData>
+                    <data name="http://www.3s-software.com/plcopenxml/pouinheritance" handleUnknown="implementation">
+                      <Inheritance>
+                        <Extends>FBF.InstanceBase</Extends>
+                        <Implements>IProductElement</Implements>
+                      </Inheritance>
+                    </data>
+                    <data name="http://www.3s-software.com/plcopenxml/attributes" handleUnknown="implementation">
+                      <Attributes>
+                        <Attribute Name="no_explicit_call" Value="Explicit calls not allowed." />
+                      </Attributes>
+                    </data>
+                  </addData>
+                  <documentation>
+                    <xhtml xmlns="http://www.w3.org/1999/xhtml"> Demo element with two integer values. 
+ An element must implement an interface which extends |COL.IElement|.
+ This function block extends FBF.InstanceBase to enable dynamic creation via FBFactory.</xhtml>
+                  </documentation>
+                </interface>
+                <body>
+                  <ST>
+                    <xhtml xmlns="http://www.w3.org/1999/xhtml" />
+                  </ST>
+                </body>
+                <addData>
+                  <data name="http://www.3s-software.com/plcopenxml/method" handleUnknown="implementation">
+                    <Method name="ElementEquals" ObjectId="be959c18-e3f2-4237-924c-a7f6f41080a9">
+                      <interface>
+                        <returnType>
+                          <BOOL />
+                        </returnType>
+                        <inputVars>
+                          <variable name="itfElement">
+                            <type>
+                              <derived name="COL.IElement" />
+                            </type>
+                            <documentation>
+                              <xhtml xmlns="http://www.w3.org/1999/xhtml"> The element to compare</xhtml>
+                            </documentation>
+                          </variable>
+                        </inputVars>
+                        <localVars>
+                          <variable name="element">
+                            <type>
+                              <derived name="IProductElement" />
+                            </type>
+                          </variable>
+                          <variable name="xResult">
+                            <type>
+                              <BOOL />
+                            </type>
+                          </variable>
+                          <variable name="elementProduct">
+                            <type>
+                              <derived name="ST_Product" />
+                            </type>
+                          </variable>
+                          <variable name="thisProduct">
+                            <type>
+                              <derived name="ST_Product" />
+                            </type>
+                          </variable>
+                        </localVars>
+                        <documentation>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml"> Returns true of this element and itfElement are equal.
+ This method will be called from the function block |COL.HashTable| to find an element by key if the hashcode of an element collides with an other element.
+ IMPORTANT: The underlying value to be compared with MUST NOT be changed during the lifecycle of the object.</xhtml>
+                        </documentation>
+                      </interface>
+                      <body>
+                        <ST>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml">xResult := __QUERYINTERFACE(itfElement, element);
+elementProduct := element.ProductValue;
+thisProduct := ProductValue;
+IF xResult THEN
+	ElementEquals := thisProduct.id = elementProduct.id;	
+ELSE
+	ElementEquals := FALSE;
+END_IF </xhtml>
+                        </ST>
+                      </body>
+                      <addData />
+                    </Method>
+                  </data>
+                  <data name="http://www.3s-software.com/plcopenxml/method" handleUnknown="implementation">
+                    <Method name="ElementHashCode" ObjectId="3c16d7be-3642-4421-805c-008f9f5822ab">
+                      <interface>
+                        <returnType>
+                          <LINT />
+                        </returnType>
+                        <localVars>
+                          <variable name="p">
+                            <type>
+                              <pointer>
+                                <baseType>
+                                  <string />
+                                </baseType>
+                              </pointer>
+                            </type>
+                          </variable>
+                        </localVars>
+                        <documentation>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml"> Returns the hashcode of this element.
+ This method is used by hash based collections (e.g. |Hashtable|) to get the hashcode from a element.
+ IMPORTANT: The value of the method MUST NOT be changed during the lifecycle of the object.</xhtml>
+                        </documentation>
+                      </interface>
+                      <body>
+                        <ST>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml">p := ADR(_product.id);
+ElementHashCode := COL.HashCodeFromString(p);</xhtml>
+                        </ST>
+                      </body>
+                      <addData />
+                    </Method>
+                  </data>
+                  <data name="http://www.3s-software.com/plcopenxml/method" handleUnknown="implementation">
+                    <Method name="ElementCompareTo" ObjectId="3d746e49-f90e-43a8-9835-c531c7df03cf">
+                      <interface>
+                        <returnType>
+                          <INT />
+                        </returnType>
+                        <inputVars>
+                          <variable name="itfElement">
+                            <type>
+                              <derived name="COL.IElement" />
+                            </type>
+                            <documentation>
+                              <xhtml xmlns="http://www.w3.org/1999/xhtml"> The element to compare</xhtml>
+                            </documentation>
+                          </variable>
+                        </inputVars>
+                        <localVars>
+                          <variable name="element">
+                            <type>
+                              <derived name="IProductElement" />
+                            </type>
+                          </variable>
+                          <variable name="xResult">
+                            <type>
+                              <BOOL />
+                            </type>
+                          </variable>
+                          <variable name="elementProduct">
+                            <type>
+                              <derived name="ST_Product" />
+                            </type>
+                          </variable>
+                        </localVars>
+                        <documentation>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml"> Compares this element with itfElement.
+ Returns 0 if the elements are equal, &lt; 0 if the element is less than itfElement, 
+ &gt; 0 if the element is greater than itfElement.
+ This method will be called from sorted collections (e.g. |COL.SortedList|) to sort the elements.
+ IMPORTANT: The underlying value to be compared with MUST NOT be changed during the lifecycle of the object.</xhtml>
+                        </documentation>
+                      </interface>
+                      <body>
+                        <ST>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml">// We use integer iInt1 for sorting.
+xResult := __QUERYINTERFACE(itfElement, element);
+IF xResult THEN
+	elementProduct := element.ProductValue;
+	IF _product.id &lt; elementProduct.id THEN
+		ElementCompareTo := -1;
+	ELSIF _product.id &gt; elementProduct.Id THEN
+		ElementCompareTo := 1;
+	ELSE
+		ElementCompareTo := 0;
+	END_IF
+ELSE
+	ElementCompareTo := -1;
+END_IF 
+</xhtml>
+                        </ST>
+                      </body>
+                      <addData />
+                    </Method>
+                  </data>
+                  <data name="http://www.3s-software.com/plcopenxml/method" handleUnknown="implementation">
+                    <Method name="prvInstInit" ObjectId="e99acd69-117d-4c51-b373-190a1f917e1e">
+                      <interface>
+                        <returnType>
+                          <derived name="FBF.ERROR" />
+                        </returnType>
+                        <inputVars>
+                          <variable name="itfData">
+                            <type>
+                              <derived name="FBF.IData" />
+                            </type>
+                          </variable>
+                        </inputVars>
+                        <localVars>
+                          <variable name="pData">
+                            <type>
+                              <pointer>
+                                <baseType>
+                                  <derived name="FB_Product" />
+                                </baseType>
+                              </pointer>
+                            </type>
+                          </variable>
+                          <variable name="xOk">
+                            <type>
+                              <BOOL />
+                            </type>
+                          </variable>
+                          <variable name="thisProduct">
+                            <type>
+                              <derived name="ST_Product" />
+                            </type>
+                          </variable>
+                        </localVars>
+                        <documentation>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml"> This methode is called from the factory to give a chance
+ to initialize the new fb instance with the content of itfData</xhtml>
+                        </documentation>
+                      </interface>
+                      <body>
+                        <ST>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml">SUPER^.prvInstInit(itfData);
+xOk := __QUERYPOINTER(itfData, pData);
+IF xOk THEN
+	ProductValue := pData^.info;
+END_IF
+</xhtml>
+                        </ST>
+                      </body>
+                      <addData />
+                    </Method>
+                  </data>
+                  <data name="http://www.3s-software.com/plcopenxml/property" handleUnknown="implementation">
+                    <Property name="ProductValue" ObjectId="d2ee7c8c-e25f-47c2-9ed4-12164a3d47d2">
+                      <interface>
+                        <returnType>
+                          <derived name="ST_Product" />
+                        </returnType>
+                      </interface>
+                      <SetAccessor>
+                        <interface />
+                        <body>
+                          <ST>
+                            <xhtml xmlns="http://www.w3.org/1999/xhtml">_product := ProductValue;
+</xhtml>
+                          </ST>
+                        </body>
+                        <addData />
+                      </SetAccessor>
+                      <GetAccessor>
+                        <interface />
+                        <body>
+                          <ST>
+                            <xhtml xmlns="http://www.w3.org/1999/xhtml">ProductValue := _product;
+</xhtml>
+                          </ST>
+                        </body>
+                        <addData />
+                      </GetAccessor>
+                      <addData />
+                    </Property>
+                  </data>
+                  <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+                    <ObjectId>9d77233f-6ab9-417e-bf92-73b50192ef5e</ObjectId>
+                  </data>
+                </addData>
+              </pou>
+            </data>
+            <data name="http://www.3s-software.com/plcopenxml/pou" handleUnknown="implementation">
+              <pou name="GetIdFromProductName" pouType="function">
+                <interface>
+                  <returnType>
+                    <string />
+                  </returnType>
+                  <inputVars>
+                    <variable name="productNamePtr">
+                      <type>
+                        <pointer>
+                          <baseType>
+                            <string />
+                          </baseType>
+                        </pointer>
+                      </type>
+                    </variable>
+                  </inputVars>
+                </interface>
+                <body>
+                  <ST>
+                    <xhtml xmlns="http://www.w3.org/1999/xhtml">SplitString(productNamePtr, '.', sLeft=&gt;GetIdFromProductName);</xhtml>
+                  </ST>
+                </body>
+                <addData>
+                  <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+                    <ObjectId>d320c63d-89e2-4d83-98a4-fed023ea1c53</ObjectId>
+                  </data>
+                </addData>
+              </pou>
+            </data>
+            <data name="http://www.3s-software.com/plcopenxml/pou" handleUnknown="implementation">
+              <pou name="FB_ProductElementFactory" pouType="functionBlock">
+                <interface>
+                  <addData>
+                    <data name="http://www.3s-software.com/plcopenxml/pouinheritance" handleUnknown="implementation">
+                      <Inheritance>
+                        <Extends>FBF.FactoryBase</Extends>
+                      </Inheritance>
+                    </data>
+                    <data name="http://www.3s-software.com/plcopenxml/attributes" handleUnknown="implementation">
+                      <Attributes>
+                        <Attribute Name="enable_dynamic_creation" Value="" />
+                      </Attributes>
+                    </data>
+                  </addData>
+                  <documentation>
+                    <xhtml xmlns="http://www.w3.org/1999/xhtml"> IElement factory for INT values</xhtml>
+                  </documentation>
+                </interface>
+                <body>
+                  <ST>
+                    <xhtml xmlns="http://www.w3.org/1999/xhtml">SUPER^();
+</xhtml>
+                  </ST>
+                </body>
+                <addData>
+                  <data name="http://www.3s-software.com/plcopenxml/method" handleUnknown="implementation">
+                    <Method name="Create" ObjectId="bf12375d-167b-4c59-b62b-d64f2b40a463">
+                      <interface>
+                        <returnType>
+                          <derived name="IProductElement" />
+                        </returnType>
+                        <inputVars>
+                          <variable name="inputData">
+                            <type>
+                              <derived name="ST_Product" />
+                            </type>
+                          </variable>
+                        </inputVars>
+                        <outputVars>
+                          <variable name="eError">
+                            <type>
+                              <derived name="FBF.ERROR" />
+                            </type>
+                          </variable>
+                        </outputVars>
+                        <localVars>
+                          <variable name="hInst">
+                            <type>
+                              <derived name="CAA.HANDLE" />
+                            </type>
+                          </variable>
+                          <variable name="itfInst">
+                            <type>
+                              <derived name="FBF.IInstance" />
+                            </type>
+                          </variable>
+                          <variable name="xOk">
+                            <type>
+                              <BOOL />
+                            </type>
+                          </variable>
+                          <variable name="itfData">
+                            <type>
+                              <derived name="FB_Product" />
+                            </type>
+                          </variable>
+                          <variable name="pInstance">
+                            <type>
+                              <pointer>
+                                <baseType>
+                                  <derived name="FB_ProductElement" />
+                                </baseType>
+                              </pointer>
+                            </type>
+                          </variable>
+                        </localVars>
+                        <documentation>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml"> Creates a IntElement </xhtml>
+                        </documentation>
+                      </interface>
+                      <body>
+                        <ST>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml">(* !!! This code must not be subject to change !!! *)
+itfData(info:=inputData);
+hInst := SUPER^.prvAllocInstMem(eError =&gt; eError);
+pInstance := SUPER^.prvGetInstPointer(hInst);
+IF pInstance &lt;&gt; 0 AND eError = FBF.ERROR.NO_ERROR THEN
+
+	{implicit on}
+	pInstance^.__vfInit();
+	pInstance^.FB_Init(TRUE, FALSE);
+	{implicit off}
+
+	xOk := __QUERYINTERFACE(pInstance^, itfInst);
+	IF xOk THEN
+		xOk := SUPER^.prvInstInit(itfInst, hInst, itfData, eError=&gt;eError);
+	ELSE
+		eError := FBF.ERROR.WRONG_INTERFACE;
+	END_IF
+
+	IF NOT xOk THEN
+		SUPER^.prvFreeInstMem(hInst);
+		Create := CAA.gc_pNULL;
+    ELSE
+        __QUERYINTERFACE(pInstance^, Create);
+	END_IF
+END_IF
+</xhtml>
+                        </ST>
+                      </body>
+                      <addData />
+                    </Method>
+                  </data>
+                  <data name="http://www.3s-software.com/plcopenxml/property" handleUnknown="implementation">
+                    <Property name="prvInstCount" ObjectId="2c7be049-4b71-413b-95ba-134e84f3d7a0">
+                      <interface>
+                        <returnType>
+                          <derived name="CAA.COUNT" />
+                        </returnType>
+                        <documentation>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml">{attribute 'conditionalshow' := 'SomeText'}
+{attribute 'conditionalshow'}
+{attribute 'hide'}</xhtml>
+                        </documentation>
+                      </interface>
+                      <GetAccessor>
+                        <interface />
+                        <body>
+                          <ST>
+                            <xhtml xmlns="http://www.w3.org/1999/xhtml">(* Please choose a proper value for prvInstCount *)
+prvInstCount := 10;</xhtml>
+                          </ST>
+                        </body>
+                        <addData />
+                      </GetAccessor>
+                      <addData />
+                    </Property>
+                  </data>
+                  <data name="http://www.3s-software.com/plcopenxml/property" handleUnknown="implementation">
+                    <Property name="prvInstPoolExtendsFactor" ObjectId="332beb5e-b8d5-46d4-a1be-7688d19df3af">
+                      <interface>
+                        <returnType>
+                          <USINT />
+                        </returnType>
+                        <documentation>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml">{attribute 'conditionalshow' := 'SomeText'}
+{attribute 'conditionalshow'}
+{attribute 'hide'}</xhtml>
+                        </documentation>
+                      </interface>
+                      <GetAccessor>
+                        <interface />
+                        <body>
+                          <ST>
+                            <xhtml xmlns="http://www.w3.org/1999/xhtml">(* Please choose a proper value for prvInstPoolExtendsFactor *)
+(* This value will be interpreted as a 0..x% size extendsion related to the original size of the pool *)
+prvInstPoolExtendsFactor := 20;</xhtml>
+                          </ST>
+                        </body>
+                        <addData />
+                      </GetAccessor>
+                      <addData />
+                    </Property>
+                  </data>
+                  <data name="http://www.3s-software.com/plcopenxml/property" handleUnknown="implementation">
+                    <Property name="prvInstSize" ObjectId="1cd415b9-f9f4-4033-afd3-3f06f32cd0bb">
+                      <interface>
+                        <returnType>
+                          <derived name="CAA.SIZE" />
+                        </returnType>
+                        <documentation>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml">{attribute 'conditionalshow' := 'SomeText'}
+{attribute 'conditionalshow'}
+{attribute 'hide'}</xhtml>
+                        </documentation>
+                      </interface>
+                      <GetAccessor>
+                        <interface />
+                        <body>
+                          <ST>
+                            <xhtml xmlns="http://www.w3.org/1999/xhtml">(* Please replace CustomFB with your specific function block type *)
+prvInstSize := sizeof(FB_ProductElement);</xhtml>
+                          </ST>
+                        </body>
+                        <addData />
+                      </GetAccessor>
+                      <addData />
+                    </Property>
+                  </data>
+                  <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+                    <ObjectId>d6bb9134-70a0-4270-8497-b49e0cd85016</ObjectId>
+                  </data>
+                </addData>
+              </pou>
+            </data>
+            <data name="http://www.3s-software.com/plcopenxml/libraries" handleUnknown="implementation">
+              <Libraries>
+                <Library Name="#Standard" Namespace="Standard" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="false" LinkAllContent="false" DefaultResolution="Standard, * (System)" />
+                <Library Name="#BreakpointLogging" Namespace="BPLog" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="Breakpoint Logging Functions, * (3S - Smart Software Solutions GmbH)" />
+                <Library Name="#ElementCollections" Namespace="COL" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="false" LinkAllContent="false" DefaultResolution="Element Collections, * (3S - Smart Software Solutions GmbH)" />
+                <Library Name="#CAA FB Factory" Namespace="FBF" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="false" LinkAllContent="false" DefaultResolution="CAA FB Factory, * (CAA Technical Workgroup)" />
+                <Library Name="#CAA Types" Namespace="CAA" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="false" LinkAllContent="false" DefaultResolution="CAA Types Extern, * (CAA Technical Workgroup)" />
+                <Library Name="#AlarmManager" Namespace="AlarmManager" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="false" LinkAllContent="false" DefaultResolution="AlarmManager, * (Intern)" />
+                <Library Name="#System_VisuElems" Namespace="VisuElems" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="VisuElems, 4.6.0.0 (System)" ResolverGuid="2717eb6a-dd07-4c66-8d8d-cacebd7b18ae" />
+                <Library Name="#System_VisuElemMeter" Namespace="VisuElemMeter" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="VisuElemMeter, 4.6.0.0 (System)" ResolverGuid="2717eb6a-dd07-4c66-8d8d-cacebd7b18ae" />
+                <Library Name="#System_VisuElemsSpecialControls" Namespace="VisuElemsSpecialControls" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="VisuElemsSpecialControls, 4.6.0.0 (System)" ResolverGuid="2717eb6a-dd07-4c66-8d8d-cacebd7b18ae" />
+                <Library Name="#System_VisuElemsWinControls" Namespace="VisuElemsWinControls" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="VisuElemsWinControls, 4.6.0.0 (System)" ResolverGuid="2717eb6a-dd07-4c66-8d8d-cacebd7b18ae" />
+                <Library Name="#System_VisuElemTextEditor" Namespace="VisuElemTextEditor" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="VisuElemTextEditor, 4.6.0.0 (System)" ResolverGuid="2717eb6a-dd07-4c66-8d8d-cacebd7b18ae" />
+                <Library Name="#System_VisuElemTrace" Namespace="VisuElemTrace" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="VisuElemTrace, 4.6.0.0 (System)" ResolverGuid="2717eb6a-dd07-4c66-8d8d-cacebd7b18ae" />
+                <Library Name="#System_VisuNativeControl" Namespace="VisuNativeControl" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="VisuNativeControl, 4.6.0.0 (System)" ResolverGuid="2717eb6a-dd07-4c66-8d8d-cacebd7b18ae" />
+                <Library Name="#System_VisuElemsAlarm" Namespace="VisuElemsAlarm" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="VisuElemsAlarm, 4.6.0.0 (System)" ResolverGuid="2717eb6a-dd07-4c66-8d8d-cacebd7b18ae" />
+                <Library Name="#System_VisuElemCamDisplayer" Namespace="VisuElemCamDisplayer" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="VisuElemCamDisplayer, 4.6.0.0 (System)" ResolverGuid="2717eb6a-dd07-4c66-8d8d-cacebd7b18ae" />
+                <Library Name="#System_VisuElem3DPath" Namespace="VisuElem3DPath" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="VisuElem3DPath, 4.6.0.0 (System)" ResolverGuid="2717eb6a-dd07-4c66-8d8d-cacebd7b18ae" />
+                <Library Name="#System_VisuElemsDateTime" Namespace="VisuElemsDateTime" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="VisuElemsDateTime, 4.6.0.0 (System)" ResolverGuid="2717eb6a-dd07-4c66-8d8d-cacebd7b18ae" />
+                <Library Name="#System_VisuElemXYChart" Namespace="VisuElemXYChart" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="VisuElemXYChart, 4.6.0.0 (System)" ResolverGuid="2717eb6a-dd07-4c66-8d8d-cacebd7b18ae" />
+                <Library Name="#System_VisuInputs" Namespace="VisuInputs" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="VisuInputs, 4.6.0.0 (System)" ResolverGuid="2717eb6a-dd07-4c66-8d8d-cacebd7b18ae" />
+                <Library Name="#VisuDialogs" Namespace="VisuDialogs" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="false" LinkAllContent="false" DefaultResolution="VisuDialogs, * (System)" />
+                <Library Name="#IoStandard" Namespace="IoStandard" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="true" DefaultResolution="IoStandard, 3.5.17.0 (System)" />
+                <Library Name="#3SLicense" Namespace="_3S_LICENSE" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="3SLicense, 0.0.0.0 (3S - Smart Software Solutions GmbH)" ResolverGuid="97c3b452-d9fa-4ac2-9d0c-3d420aa6d95b" />
+                <Library Name="#CAA Device Diagnosis" Namespace="DED" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="CAA Device Diagnosis, 3.5.20.0 (CAA Technical Workgroup)" />
+                <PlaceholderRedirections>
+                  <PlaceholderRedirection Placeholder="VisuSymbols" Redirection="VisuSymbols, 4.5.0.0 (System)" />
+                  <PlaceholderRedirection Placeholder="Standard" Redirection="Standard, 3.5.18.0 (System)" />
+                  <PlaceholderRedirection Placeholder="Standard64" Redirection="Standard64, 3.5.20.0 (System)" />
+                  <PlaceholderRedirection Placeholder="Util" Redirection="Util, 3.5.19.0 (System)" />
+                  <PlaceholderRedirection Placeholder="StringUtils" Redirection="StringUtils, 3.5.20.0 (System)" />
+                  <PlaceholderRedirection Placeholder="Collections" Redirection="Collections, 3.5.17.0 (System)" />
+                  <PlaceholderRedirection Placeholder="FloatingPointUtils" Redirection="FloatingPointUtils, 3.5.17.0 (System)" />
+                </PlaceholderRedirections>
+                <addData>
+                  <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+                    <ObjectId>d5364380-4d14-49c0-b1af-78d2b257d4d2</ObjectId>
+                  </data>
+                </addData>
+              </Libraries>
+            </data>
+            <data name="http://www.3s-software.com/plcopenxml/buildproperties" handleUnknown="implementation">
+              <BuildProperties>
+                <CompilerDefines>GENERATE_OVERLAY_VISU,VISU_USEPROPERTYINFO</CompilerDefines>
+              </BuildProperties>
+            </data>
+            <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+              <ObjectId>759218b6-7b5e-4707-9e61-e590603f7897</ObjectId>
+            </data>
+          </addData>
+        </resource>
+        <addData>
+          <data name="Device" handleUnknown="discard">
+            <Device xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="">
+              <DeviceType>
+                <DeviceIdentification>
+                  <Type>4096</Type>
+                  <Id>0000 0004</Id>
+                  <Version>3.5.20.30</Version>
+                </DeviceIdentification>
+                <Connector moduleType="256" interface="Common.PCI" connectorId="0">
+                  <HostParameterSet />
+                </Connector>
+                <Connector moduleType="769" interface="SafetyInterface" connectorId="1">
+                  <HostParameterSet />
+                </Connector>
+                <DeviceParameterSet />
+              </DeviceType>
+            </Device>
+          </data>
+          <data name="configurations" handleUnknown="discard">
+            <configurations />
+          </data>
+          <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+            <ObjectId>d11c0fee-02de-43a0-9ef9-6b5821f339ea</ObjectId>
+          </data>
+        </addData>
+      </configuration>
+    </configurations>
+  </instances>
+  <addData>
+    <data name="http://www.3s-software.com/plcopenxml/libraries" handleUnknown="implementation">
+      <Libraries>
+        <Library Name="#VisuSymbols" Namespace="VisuSymbols" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="false" LinkAllContent="false" DefaultResolution="VisuSymbols, 4.5.0.0 (System)" />
+        <Library Name="#System_VisuElems" Namespace="VisuElems" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="VisuElems, 4.6.0.0 (System)" ResolverGuid="2717eb6a-dd07-4c66-8d8d-cacebd7b18ae" />
+        <Library Name="#System_VisuElemMeter" Namespace="VisuElemMeter" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="VisuElemMeter, 4.6.0.0 (System)" ResolverGuid="2717eb6a-dd07-4c66-8d8d-cacebd7b18ae" />
+        <Library Name="#System_VisuElemsSpecialControls" Namespace="VisuElemsSpecialControls" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="VisuElemsSpecialControls, 4.6.0.0 (System)" ResolverGuid="2717eb6a-dd07-4c66-8d8d-cacebd7b18ae" />
+        <Library Name="#System_VisuElemsWinControls" Namespace="VisuElemsWinControls" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="VisuElemsWinControls, 4.6.0.0 (System)" ResolverGuid="2717eb6a-dd07-4c66-8d8d-cacebd7b18ae" />
+        <Library Name="#System_VisuElemTextEditor" Namespace="VisuElemTextEditor" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="VisuElemTextEditor, 4.6.0.0 (System)" ResolverGuid="2717eb6a-dd07-4c66-8d8d-cacebd7b18ae" />
+        <Library Name="#System_VisuElemTrace" Namespace="VisuElemTrace" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="VisuElemTrace, 4.6.0.0 (System)" ResolverGuid="2717eb6a-dd07-4c66-8d8d-cacebd7b18ae" />
+        <Library Name="#System_VisuNativeControl" Namespace="VisuNativeControl" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="VisuNativeControl, 4.6.0.0 (System)" ResolverGuid="2717eb6a-dd07-4c66-8d8d-cacebd7b18ae" />
+        <Library Name="#System_VisuElemsAlarm" Namespace="VisuElemsAlarm" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="VisuElemsAlarm, 4.6.0.0 (System)" ResolverGuid="2717eb6a-dd07-4c66-8d8d-cacebd7b18ae" />
+        <Library Name="#System_VisuElemCamDisplayer" Namespace="VisuElemCamDisplayer" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="VisuElemCamDisplayer, 4.6.0.0 (System)" ResolverGuid="2717eb6a-dd07-4c66-8d8d-cacebd7b18ae" />
+        <Library Name="#System_VisuElem3DPath" Namespace="VisuElem3DPath" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="VisuElem3DPath, 4.6.0.0 (System)" ResolverGuid="2717eb6a-dd07-4c66-8d8d-cacebd7b18ae" />
+        <Library Name="#System_VisuElemsDateTime" Namespace="VisuElemsDateTime" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="VisuElemsDateTime, 4.6.0.0 (System)" ResolverGuid="2717eb6a-dd07-4c66-8d8d-cacebd7b18ae" />
+        <Library Name="#System_VisuElemXYChart" Namespace="VisuElemXYChart" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="VisuElemXYChart, 4.6.0.0 (System)" ResolverGuid="2717eb6a-dd07-4c66-8d8d-cacebd7b18ae" />
+        <Library Name="#System_VisuInputs" Namespace="VisuInputs" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="VisuInputs, 4.6.0.0 (System)" ResolverGuid="2717eb6a-dd07-4c66-8d8d-cacebd7b18ae" />
+        <PlaceholderRedirections>
+          <PlaceholderRedirection Placeholder="CmpTraceMgr" Redirection="NotImplementedByDevice, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="SysCpuHandling" Redirection="NotImplementedByDevice, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="CmpDynamicText" Redirection="NotImplementedByDevice, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="Standard64" Redirection="Standard64, 3.5.20.0 (System)" />
+          <PlaceholderRedirection Placeholder="CmpVisuHandler" Redirection="NotImplementedByDevice, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="CmpIecTask" Redirection="NotImplementedByDevice, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="SysTimeCore" Redirection="NotImplementedByDevice, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="SysShm" Redirection="SysShm, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="SysTarget" Redirection="NotImplementedByDevice, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="CmpSchedule" Redirection="NotImplementedByDevice, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="VisuSymbols" Redirection="VisuSymbols, 4.5.0.0 (System)" />
+          <PlaceholderRedirection Placeholder="CmpBitmapPool" Redirection="NotImplementedByDevice, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="SysSem" Redirection="SysSem, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="SysProcess" Redirection="SysProcess, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="Component Manager" Redirection="NotImplementedByDevice, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="SysTask" Redirection="NotImplementedByDevice, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="SysShm Implementation" Redirection="NotImplementedByDevice, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="SysSem Implementation" Redirection="NotImplementedByDevice, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="CmpUserMgr Implementation" Redirection="NotImplementedByDevice, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="SysFile" Redirection="NotImplementedByDevice, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="SysTime" Redirection="SysTime, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="SysProcess Implementation" Redirection="NotImplementedByDevice, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="CAA Storage Imp" Redirection="NotImplementedByDevice, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="CAA Storage" Redirection="NotImplementedByDevice, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="StringUtils" Redirection="StringUtils, 3.5.20.0 (System)" />
+          <PlaceholderRedirection Placeholder="CmpSrv" Redirection="CmpSrv, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="Util" Redirection="Util, 3.5.19.0 (System)" />
+          <PlaceholderRedirection Placeholder="CmpLog" Redirection="NotImplementedByDevice, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="CAA ResMan" Redirection="NotImplementedByDevice, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="CmpApp" Redirection="NotImplementedByDevice, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="CmpEventMgr" Redirection="CmpEventMgr, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="SysTimeRtc" Redirection="NotImplementedByDevice, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="Rts Service Handler" Redirection="Rts Service Handler, 3.5.17.0 (3S - Smart Software Solutions GmbH)" />
+          <PlaceholderRedirection Placeholder="CAA FB Factory" Redirection="CAA FB Factory, 3.5.19.0 (CAA Technical Workgroup)" />
+          <PlaceholderRedirection Placeholder="FloatingPointUtils" Redirection="FloatingPointUtils, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="Standard" Redirection="Standard, 3.5.18.0 (System)" />
+          <PlaceholderRedirection Placeholder="CAA Callback" Redirection="NotImplementedByDevice, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="CmpBinTagUtilIec" Redirection="NotImplementedByDevice, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="CAA Types" Redirection="NotImplementedByDevice, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="Collections" Redirection="Collections, 3.5.17.0 (System)" />
+          <PlaceholderRedirection Placeholder="SysMem" Redirection="NotImplementedByDevice, 3.5.17.0 (System)" />
+        </PlaceholderRedirections>
+        <addData>
+          <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+            <ObjectId>a80cbe06-996b-48ce-8138-275b5d19e7e2</ObjectId>
+          </data>
+        </addData>
+      </Libraries>
+    </data>
+    <data name="http://www.3s-software.com/plcopenxml/projectstructure" handleUnknown="discard">
+      <ProjectStructure>
+        <Object Name="Device" ObjectId="d11c0fee-02de-43a0-9ef9-6b5821f339ea">
+          <Object Name="Application" ObjectId="759218b6-7b5e-4707-9e61-e590603f7897">
+            <Object Name="ライブラリ マネージャー" ObjectId="d5364380-4d14-49c0-b1af-78d2b257d4d2" />
+            <Object Name="MainTask" ObjectId="90415153-d61e-46df-a5d4-a19ae283ef1b" />
+            <Object Name="VISU_TASK" ObjectId="cc00ce99-a5d6-4bbb-ab55-26f8886214e6" />
+            <Folder Name="ProductSetting">
+              <Object Name="ST_Product" ObjectId="4a308fa6-0529-4b30-a44d-deb4170bf4cd" />
+              <Object Name="IProductElement" ObjectId="0f107fc9-3480-4e3f-82cd-f8e11f29b270">
+                <Object Name="ProductValue" ObjectId="a192ae19-3ba8-40e2-a449-4dfa0b68b63e" />
+              </Object>
+              <Object Name="PRG_ProductSetting" ObjectId="4554cb08-a461-43ac-b47d-caffbf807068">
+                <Object Name="DeleteProductFromNameArray" ObjectId="eaa9636a-ec93-4868-a7b1-31f89261d8ee" />
+                <Object Name="UpdateProductToNameArray" ObjectId="0f832052-5da8-4b66-9c11-0f0bacc2f506" />
+                <Object Name="DeleteProduct" ObjectId="bc40a37c-41e3-40d9-a78a-55870e9f34ec" />
+                <Object Name="Save" ObjectId="21900fc4-6a8b-4ee3-92e5-25ca593b3df4" />
+                <Object Name="InsertProductToNameArray" ObjectId="3f71a655-5904-4832-9089-01ece8fe8137" />
+                <Object Name="UpdateSelectedProduct" ObjectId="1e296f28-e4d4-4161-beb8-00546c1938ca" />
+                <Object Name="TransToCreateMode" ObjectId="91ce8b48-7087-41b8-bc58-04e64a89e122" />
+                <Object Name="CancelCreate" ObjectId="beba4fda-f736-41df-b7b8-944a138c459b" />
+                <Object Name="SaveAs" ObjectId="7990b318-dd86-4b2d-8f87-df677405403f" />
+                <Object Name="ClearVisuProduct" ObjectId="0f2604f7-086c-491c-a423-120cf29ed69c" />
+                <Object Name="GetProductInfo" ObjectId="6a8201df-e0f0-437f-ae37-1e590781f585" />
+              </Object>
+              <Object Name="FB_Product" ObjectId="447c3c92-52a4-4dfe-a148-37d570a4e483" />
+              <Object Name="FB_ProductElement" ObjectId="9d77233f-6ab9-417e-bf92-73b50192ef5e">
+                <Object Name="ElementEquals" ObjectId="be959c18-e3f2-4237-924c-a7f6f41080a9" />
+                <Object Name="ElementHashCode" ObjectId="3c16d7be-3642-4421-805c-008f9f5822ab" />
+                <Object Name="ElementCompareTo" ObjectId="3d746e49-f90e-43a8-9835-c531c7df03cf" />
+                <Object Name="prvInstInit" ObjectId="e99acd69-117d-4c51-b373-190a1f917e1e" />
+                <Object Name="ProductValue" ObjectId="d2ee7c8c-e25f-47c2-9ed4-12164a3d47d2" />
+              </Object>
+              <Object Name="GetIdFromProductName" ObjectId="d320c63d-89e2-4d83-98a4-fed023ea1c53" />
+              <Object Name="FB_ProductElementFactory" ObjectId="d6bb9134-70a0-4270-8497-b49e0cd85016">
+                <Object Name="Create" ObjectId="bf12375d-167b-4c59-b62b-d64f2b40a463" />
+                <Object Name="prvInstCount" ObjectId="2c7be049-4b71-413b-95ba-134e84f3d7a0" />
+                <Object Name="prvInstPoolExtendsFactor" ObjectId="332beb5e-b8d5-46d4-a1be-7688d19df3af" />
+                <Object Name="prvInstSize" ObjectId="1cd415b9-f9f4-4033-afd3-3f06f32cd0bb" />
+              </Object>
+              <Object Name="E_ProductSettingState" ObjectId="91ac85cc-ab0a-45cb-9736-60be58abba06" />
+            </Folder>
+            <Object Name="GVL" ObjectId="a55d3702-587c-4891-9905-3d518c25ff95" />
+          </Object>
+        </Object>
+        <Object Name="ライブラリ マネージャー" ObjectId="a80cbe06-996b-48ce-8138-275b5d19e7e2" />
+      </ProjectStructure>
+    </data>
+  </addData>
+</project>

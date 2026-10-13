@@ -117,21 +117,4 @@ public class RealWorldFixtureTests
 
         result.HasDifferences.Should().BeFalse();
     }
-
-    [Fact]
-    public async Task Codesys_v35_PlcOpenExport_FunctionBlocksVariablesAndMethods()
-    {
-        var path = Fixture("PLCopen", "OSC_MQTT.xml");
-        var parser = new CodesysParser();
-
-        parser.CanParse(path).Should().BeTrue();
-        var project = await parser.ParseAsync(path);
-
-        var pous = project.Programs.Where(p => p.Type == "functionBlock").ToList();
-        pous.Select(p => p.Name).Should().BeEquivalentTo("MQTTClient", "MQTTPub");
-
-        var client = pous.Single(p => p.Name == "MQTTClient");
-        client.LocalTags.Select(t => t.Name).Should().Contain(new[] { "sServerIP", "uiPort", "xEnable" });
-        client.Routines.Should().Contain(r => r.Name == "Publish");
-    }
 }

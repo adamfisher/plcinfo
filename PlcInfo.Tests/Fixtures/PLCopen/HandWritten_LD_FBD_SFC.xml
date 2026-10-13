@@ -1,0 +1,299 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  HAND-WRITTEN test input, not a tool export. Written for plcinfo against the PLCopen TC6 v2.01
+  schema (tc6_xml_v201.xsd) to cover graphical bodies that the permissively licensed real exports
+  do not: parallel ladder branches, edge contacts, set coils, a timer instance, jumps and labels,
+  negated FBD inputs, and an SFC selection divergence/convergence with action blocks.
+  Released under the same license as plcinfo (MIT).
+-->
+<project xmlns="http://www.plcopen.org/xml/tc6_0201" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <fileHeader companyName="plcinfo tests" productName="Hand-written" productVersion="1" creationDateTime="2026-10-12T00:00:00"/>
+  <contentHeader name="HandWritten">
+    <coordinateInfo>
+      <fbd><scaling x="1" y="1"/></fbd>
+      <ld><scaling x="1" y="1"/></ld>
+      <sfc><scaling x="1" y="1"/></sfc>
+    </coordinateInfo>
+  </contentHeader>
+  <types>
+    <dataTypes>
+      <dataType name="Range">
+        <baseType>
+          <subrangeSigned>
+            <range lower="-10" upper="10"/>
+            <baseType><INT/></baseType>
+          </subrangeSigned>
+        </baseType>
+      </dataType>
+      <dataType name="PInt">
+        <baseType><pointer><baseType><INT/></baseType></pointer></baseType>
+      </dataType>
+    </dataTypes>
+    <pous>
+      <pou name="Ladder" pouType="program">
+        <interface>
+          <localVars>
+            <variable name="a"><type><BOOL/></type></variable>
+            <variable name="b"><type><BOOL/></type></variable>
+            <variable name="c"><type><BOOL/></type></variable>
+            <variable name="d"><type><BOOL/></type></variable>
+            <variable name="start"><type><BOOL/></type></variable>
+            <variable name="done"><type><BOOL/></type></variable>
+            <variable name="stop"><type><BOOL/></type></variable>
+            <variable name="tmr"><type><derived name="TON"/></type></variable>
+          </localVars>
+        </interface>
+        <body>
+          <LD>
+            <!-- Rung 1, with a comment above it: a AND (b OR NOT c) drives d. -->
+            <comment localId="100" height="20" width="200">
+              <position x="10" y="0"/>
+              <content><xhtml:p>Motor permissive</xhtml:p></content>
+            </comment>
+            <leftPowerRail localId="1" height="300" width="2">
+              <position x="0" y="10"/>
+              <connectionPointOut formalParameter="r1"><relPosition x="2" y="20"/></connectionPointOut>
+              <connectionPointOut formalParameter="r2"><relPosition x="2" y="120"/></connectionPointOut>
+              <connectionPointOut formalParameter="r3"><relPosition x="2" y="220"/></connectionPointOut>
+            </leftPowerRail>
+            <contact localId="2" negated="false" edge="none" storage="none">
+              <position x="40" y="25"/>
+              <connectionPointIn><connection refLocalId="1" formalParameter="r1"/></connectionPointIn>
+              <connectionPointOut/>
+              <variable>a</variable>
+            </contact>
+            <contact localId="3" negated="false">
+              <position x="90" y="25"/>
+              <connectionPointIn><connection refLocalId="2"/></connectionPointIn>
+              <connectionPointOut/>
+              <variable>b</variable>
+            </contact>
+            <contact localId="4" negated="true">
+              <position x="90" y="55"/>
+              <connectionPointIn><connection refLocalId="2"/></connectionPointIn>
+              <connectionPointOut/>
+              <variable>c</variable>
+            </contact>
+            <coil localId="5" negated="false" storage="none">
+              <position x="200" y="25"/>
+              <connectionPointIn>
+                <connection refLocalId="3"/>
+                <connection refLocalId="4"/>
+              </connectionPointIn>
+              <connectionPointOut/>
+              <variable>d</variable>
+            </coil>
+            <rightPowerRail localId="6" height="300" width="2">
+              <position x="300" y="10"/>
+              <connectionPointIn><connection refLocalId="5"/></connectionPointIn>
+              <connectionPointIn><connection refLocalId="13"/></connectionPointIn>
+            </rightPowerRail>
+            <!-- Rung 2: a rising edge on start runs a 5 s timer; its Q sets done. -->
+            <contact localId="10" edge="rising">
+              <position x="40" y="125"/>
+              <connectionPointIn><connection refLocalId="1" formalParameter="r2"/></connectionPointIn>
+              <connectionPointOut/>
+              <variable>start</variable>
+            </contact>
+            <inVariable localId="11">
+              <position x="40" y="150"/>
+              <connectionPointOut/>
+              <expression>T#5s</expression>
+            </inVariable>
+            <block localId="12" typeName="TON" instanceName="tmr">
+              <position x="100" y="120"/>
+              <inputVariables>
+                <variable formalParameter="IN"><connectionPointIn><connection refLocalId="10"/></connectionPointIn></variable>
+                <variable formalParameter="PT"><connectionPointIn><connection refLocalId="11"/></connectionPointIn></variable>
+              </inputVariables>
+              <inOutVariables/>
+              <outputVariables>
+                <variable formalParameter="Q"><connectionPointOut/></variable>
+                <variable formalParameter="ET"><connectionPointOut/></variable>
+              </outputVariables>
+            </block>
+            <coil localId="13" storage="set">
+              <position x="200" y="125"/>
+              <connectionPointIn><connection refLocalId="12" formalParameter="Q"/></connectionPointIn>
+              <connectionPointOut/>
+              <variable>done</variable>
+            </coil>
+            <!-- Rung 3: jump to End unless stop is set. -->
+            <contact localId="20" negated="true">
+              <position x="40" y="225"/>
+              <connectionPointIn><connection refLocalId="1" formalParameter="r3"/></connectionPointIn>
+              <connectionPointOut/>
+              <variable>stop</variable>
+            </contact>
+            <jump localId="21" label="End">
+              <position x="200" y="225"/>
+              <connectionPointIn><connection refLocalId="20"/></connectionPointIn>
+            </jump>
+            <label localId="30" label="End">
+              <position x="0" y="300"/>
+            </label>
+            <return localId="31">
+              <position x="40" y="310"/>
+              <connectionPointIn><connection refLocalId="1" formalParameter="r3"/></connectionPointIn>
+            </return>
+          </LD>
+        </body>
+      </pou>
+      <pou name="Calc" pouType="function">
+        <interface>
+          <returnType><INT/></returnType>
+          <inputVars>
+            <variable name="x"><type><INT/></type></variable>
+            <variable name="enable"><type><BOOL/></type></variable>
+          </inputVars>
+        </interface>
+        <body>
+          <FBD>
+            <inVariable localId="1"><position x="0" y="0"/><connectionPointOut/><expression>x</expression></inVariable>
+            <inVariable localId="2"><position x="0" y="20"/><connectionPointOut/><expression>1</expression></inVariable>
+            <inVariable localId="3"><position x="0" y="40"/><connectionPointOut/><expression>enable</expression></inVariable>
+            <block localId="4" typeName="ADD">
+              <position x="50" y="0"/>
+              <inputVariables>
+                <variable formalParameter="IN1"><connectionPointIn><connection refLocalId="1"/></connectionPointIn></variable>
+                <variable formalParameter="IN2"><connectionPointIn><connection refLocalId="2"/></connectionPointIn></variable>
+              </inputVariables>
+              <inOutVariables/>
+              <outputVariables><variable formalParameter="OUT"><connectionPointOut/></variable></outputVariables>
+            </block>
+            <block localId="5" typeName="SEL">
+              <position x="100" y="0"/>
+              <inputVariables>
+                <variable formalParameter="G" negated="true"><connectionPointIn><connection refLocalId="3"/></connectionPointIn></variable>
+                <variable formalParameter="IN0"><connectionPointIn><connection refLocalId="4" formalParameter="OUT"/></connectionPointIn></variable>
+                <variable formalParameter="IN1"><connectionPointIn><connection refLocalId="1"/></connectionPointIn></variable>
+              </inputVariables>
+              <inOutVariables/>
+              <outputVariables><variable formalParameter="OUT"><connectionPointOut/></variable></outputVariables>
+            </block>
+            <outVariable localId="6">
+              <position x="150" y="0"/>
+              <connectionPointIn><connection refLocalId="5"/></connectionPointIn>
+              <expression>Calc</expression>
+            </outVariable>
+          </FBD>
+        </body>
+      </pou>
+      <pou name="Sequence" pouType="program">
+        <interface>
+          <localVars>
+            <variable name="go"><type><BOOL/></type></variable>
+            <variable name="left"><type><BOOL/></type></variable>
+          </localVars>
+        </interface>
+        <actions>
+          <action name="Fill">
+            <body><ST><xhtml:p>level := level + 1;</xhtml:p></ST></body>
+          </action>
+        </actions>
+        <body>
+          <SFC>
+            <step localId="1" name="Init" initialStep="true">
+              <position x="0" y="0"/>
+              <connectionPointIn/>
+              <connectionPointOut formalParameter="sfc"/>
+              <connectionPointOutAction formalParameter=""/>
+            </step>
+            <actionBlock localId="2">
+              <position x="50" y="0"/>
+              <connectionPointIn><connection refLocalId="1"/></connectionPointIn>
+              <action localId="0" qualifier="P1"><relPosition x="0" y="0"/><reference name="Fill"/></action>
+            </actionBlock>
+            <selectionDivergence localId="3">
+              <position x="0" y="20"/>
+              <connectionPointIn><connection refLocalId="1"/></connectionPointIn>
+              <connectionPointOut formalParameter="a"/>
+              <connectionPointOut formalParameter="b"/>
+            </selectionDivergence>
+            <transition localId="4">
+              <position x="0" y="30"/>
+              <connectionPointIn><connection refLocalId="3" formalParameter="a"/></connectionPointIn>
+              <connectionPointOut/>
+              <condition><reference name="go"/></condition>
+            </transition>
+            <transition localId="5" priority="2">
+              <position x="40" y="30"/>
+              <connectionPointIn><connection refLocalId="3" formalParameter="b"/></connectionPointIn>
+              <connectionPointOut/>
+              <condition><inline name="t5"><ST><xhtml:p>left AND NOT go</xhtml:p></ST></inline></condition>
+            </transition>
+            <step localId="6" name="Left">
+              <position x="40" y="40"/>
+              <connectionPointIn><connection refLocalId="5"/></connectionPointIn>
+              <connectionPointOut formalParameter="sfc"/>
+            </step>
+            <step localId="7" name="Right">
+              <position x="0" y="40"/>
+              <connectionPointIn><connection refLocalId="4"/></connectionPointIn>
+              <connectionPointOut formalParameter="sfc"/>
+            </step>
+            <inVariable localId="9">
+              <position x="20" y="45"/>
+              <connectionPointOut/>
+              <expression>left</expression>
+            </inVariable>
+            <transition localId="10">
+              <position x="0" y="50"/>
+              <connectionPointIn><connection refLocalId="7"/></connectionPointIn>
+              <connectionPointOut/>
+              <condition negated="true"><connectionPointIn><connection refLocalId="9"/></connectionPointIn></condition>
+            </transition>
+            <transition localId="12">
+              <position x="40" y="50"/>
+              <connectionPointIn><connection refLocalId="6"/></connectionPointIn>
+              <connectionPointOut/>
+              <condition><reference name="go"/></condition>
+            </transition>
+            <selectionConvergence localId="8">
+              <position x="0" y="60"/>
+              <connectionPointIn><connection refLocalId="10"/></connectionPointIn>
+              <connectionPointIn><connection refLocalId="12"/></connectionPointIn>
+              <connectionPointOut/>
+            </selectionConvergence>
+            <jumpStep localId="11" targetName="Init">
+              <position x="0" y="70"/>
+              <connectionPointIn><connection refLocalId="8"/></connectionPointIn>
+            </jumpStep>
+          </SFC>
+        </body>
+      </pou>
+    </pous>
+  </types>
+  <instances>
+    <configurations>
+      <configuration name="Config">
+        <resource name="Res">
+          <task name="Fast" priority="1" interval="T#1s500ms">
+            <pouInstance name="inst0" typeName="Ladder"/>
+          </task>
+          <task name="Micro" priority="2" interval="T#100us">
+            <pouInstance name="inst1" typeName="Sequence"/>
+          </task>
+          <task name="OnEdge" priority="3" single="start"/>
+          <globalVars name="Limits" constant="true">
+            <variable name="LIMITS">
+              <type>
+                <array>
+                  <dimension lower="1" upper="N_MAX"/>
+                  <baseType><LREAL/></baseType>
+                </array>
+              </type>
+              <initialValue>
+                <arrayValue>
+                  <value><simpleValue value="1.5"/></value>
+                  <value repetitionValue="3"><simpleValue value="0.0"/></value>
+                </arrayValue>
+              </initialValue>
+            </variable>
+            <variable name="X0" address="%IX0.0"><type><BOOL/></type></variable>
+          </globalVars>
+        </resource>
+      </configuration>
+    </configurations>
+  </instances>
+</project>
