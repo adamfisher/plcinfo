@@ -2,7 +2,7 @@ name: Release
 
 # Push a version tag (e.g. 2.0.0) to build self-contained binaries for every
 # platform, run the tests, and publish a GitHub release with the notes in
-# docs/releases/<tag>.md.
+# .github/release-notes/<tag>.md.
 on:
   push:
     tags: ['[0-9]+.[0-9]+.[0-9]+*']
@@ -37,7 +37,7 @@ jobs:
           version="${TAG}"
           grep -q "<Version>${version}</Version>" PlcInfo/PlcInfo.csproj \
             || { echo "PlcInfo.csproj <Version> does not match tag ${TAG}"; exit 1; }
-          test -f "docs/releases/${TAG}.md" || { echo "missing docs/releases/${TAG}.md"; exit 1; }
+          test -f ".github/release-notes/${TAG}.md" || { echo "missing .github/release-notes/${TAG}.md"; exit 1; }
 
       - name: Test
         run: dotnet test --configuration Release
@@ -79,5 +79,5 @@ jobs:
           if gh release view "${TAG}" >/dev/null 2>&1; then
             gh release upload "${TAG}" dist/* --clobber
           else
-            gh release create "${TAG}" dist/* --title "v${TAG}" --notes-file "docs/releases/${TAG}.md" --verify-tag
+            gh release create "${TAG}" dist/* --title "v${TAG}" --notes-file ".github/release-notes/${TAG}.md" --verify-tag
           fi
