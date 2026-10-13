@@ -170,6 +170,58 @@ public class RockwellL5XRegressionTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task ParseAsync_ContextComponents_AreNotProjectContent()
+    {
+        // Partial exports carry referenced components with Use="Context" for import only.
+        var file = await WriteL5X(@"
+    <DataTypes>
+      <DataType Name='Ref' Use='Context'><Members/></DataType>
+    </DataTypes>
+    <Tags>
+      <Tag Name='Exported' TagType='Base' DataType='DINT' Use='Target'/>
+      <Tag Name='Referenced' TagType='Base' DataType='DINT' Use='Context'/>
+    </Tags>
+    <Programs>
+      <Program Name='Ctx' Use='Context'/>
+      <Program Name='Main' Use='Target'/>
+    </Programs>");
+
+        var result = await _parser.ParseAsync(file);
+
+        result.Tags.Select(t => t.Name).Should().Equal("Exported");
+        result.Programs.Select(p => p.Name).Should().Equal("Main");
+        result.DataTypes.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ParseAsync_OnlineEditCopies_UsesOriginalContent()
+    {
+        var file = await WriteL5X(@"
+    <Programs>
+      <Program Name='P'>
+        <Routines>
+          <Routine Name='S' Type='ST'>
+            <STContent OnlineEditType='PendingEdits'><Line Number='0'><![CDATA[x := 2;]]></Line></STContent>
+            <STContent OnlineEditType='Original'><Line Number='0'><![CDATA[x := 1;]]></Line></STContent>
+          </Routine>
+          <Routine Name='L' Type='RLL'>
+            <RLLContent>
+              <Rung Number='0' Type='N'><Text><![CDATA[XIC(a)OTE(b);]]></Text></Rung>
+              <Rung Number='1' Type='e'><Text><![CDATA[XIC(c)OTE(d);]]></Text></Rung>
+            </RLLContent>
+          </Routine>
+        </Routines>
+      </Program>
+    </Programs>");
+
+        var result = await _parser.ParseAsync(file);
+
+        var routines = result.Programs.Single().Routines;
+        routines.Single(r => r.Name == "S").Source.Should().Be("x := 1;");
+        routines.Single(r => r.Name == "L").Rungs.Select(r => (r.Number, r.EditState)).Should().Equal((0, "N"), (1, "e"));
+    }
+
     private async Task<string> WriteL5X(string controllerBody, string controllerAttributes = "MajorRev='33' MinorRev='1'")
     {
         var content = $@"<?xml version='1.0' encoding='UTF-8' standalone='yes'?>

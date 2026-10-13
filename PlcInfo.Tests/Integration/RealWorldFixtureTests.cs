@@ -47,10 +47,39 @@ public class RealWorldFixtureTests
 
         var aoi = project.Programs.Single(p => p.Type == "AddOnInstruction");
         aoi.Name.Should().Be("AddOnInstruction");
-        aoi.LocalTags.Should().HaveCount(2);
+        // Parameters (call signature) followed by the AOI's local tags.
+        aoi.LocalTags.Select(t => (t.Name, t.Usage)).Should().Equal(
+            ("EnableIn", "Input"), ("EnableOut", "Output"), ("AOIDINTLocalTag", "Local"));
 
         project.Tags.Should().HaveCount(21);
-        project.IoModules.Select(m => m.Name).Should().Equal("Local", "ETH_MODULE");
+
+        // Slot comes from the upstream port; the controller is not its own parent.
+        project.IoModules.Select(m => (m.Name, m.Location, m.ParentModule)).Should().Equal(
+            ("Local", "Slot 0", (string?)null),
+            ("ETH_MODULE", "Slot 1", "Local"));
+    }
+
+    [Fact]
+    public async Task Studio5000_v34_UserDefinedTypesAndStructuredText()
+    {
+        var project = await new RockwellL5XParser().ParseAsync(Fixture("Rockwell", "ACDTestsWithAOI.L5X"));
+
+        // The hidden SINT that hosts BOOL bits is not a real member; BIT members are BOOLs.
+        var udt = project.DataTypes.Should().ContainSingle().Subject;
+        udt.Name.Should().Be("UDT_Test");
+        udt.Members.Select(m => (m.Name, m.DataType)).Should().Equal(
+            ("TestDINT", "DINT"), ("TestBOOL", "BOOL"), ("TestULINT", "ULINT"));
+
+        var st = project.Programs.SelectMany(p => p.Routines).Single(r => r.Name == "STRoutine");
+        st.Source.Should().Be(
+            "DINT := DINT AND UDINT; // Line 1 COmment\n" +
+            "DINT := DINT AND ULINT; // Line 2 Comment\n" +
+            "\n" +
+            "// Random Comment\n" +
+            "\n");
+
+        project.Programs.SelectMany(p => p.Routines).SelectMany(r => r.Rungs)
+            .Should().OnlyContain(r => r.EditState == "N");
     }
 
     [Fact]

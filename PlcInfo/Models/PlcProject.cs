@@ -51,6 +51,11 @@ public record PlcProject
     public IReadOnlyList<IoModuleInfo> IoModules { get; set; } = Array.Empty<IoModuleInfo>();
 
     /// <summary>
+    /// User-defined data types (UDTs, DUTs, PLC data types).
+    /// </summary>
+    public IReadOnlyList<DataTypeInfo> DataTypes { get; set; } = Array.Empty<DataTypeInfo>();
+
+    /// <summary>
     /// Timestamp when the project was last modified.
     /// </summary>
     public DateTime? LastModified { get; set; }

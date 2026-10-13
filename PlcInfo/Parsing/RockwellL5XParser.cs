@@ -43,9 +43,7 @@ public class RockwellL5XParser : IPlcProjectParser
         var programs = ParsePrograms(root);
         var tags = ParseTags(root);
         var modules = ParseModules(root);
-
-        // Calculate total rungs from all routines
-        var totalRungs = programs.SelectMany(p => p.Routines).Sum(r => r.RungCount);
+        var dataTypes = ParseDataTypes(root);
 
         return new PlcProject
         {
@@ -57,6 +55,7 @@ public class RockwellL5XParser : IPlcProjectParser
             Programs = programs,
             Tags = tags,
             IoModules = modules,
+            DataTypes = dataTypes,
             LastModified = File.GetLastWriteTime(filePath),
             Metadata = new Dictionary<string, string>
             {
@@ -67,6 +66,21 @@ public class RockwellL5XParser : IPlcProjectParser
             }
         };
     }
+
+    /// <summary>
+    /// Partial exports (rung, routine, program...) include referenced components with
+    /// Use="Context" for import only. They are not part of the exported content.
+    /// </summary>
+    private static IEnumerable<XElement> Content(XElement? parent, string name) =>
+        parent?.Elements(name).Where(e => e.Attribute("Use")?.Value != "Context") ?? Enumerable.Empty<XElement>();
+
+    /// <summary>
+    /// Returns the element without online-edit copies: content elements can repeat
+    /// with OnlineEditType = Original | PendingEdits | TestEdits.
+    /// </summary>
+    private static XElement? OriginalContent(XElement parent, string name) =>
+        parent.Elements(name).FirstOrDefault(e => e.Attribute("OnlineEditType") is null || e.Attribute("OnlineEditType")!.Value == "Original")
+        ?? parent.Element(name);
 
     private ControllerInfo? ParseController(XElement root)
     {
@@ -100,7 +114,7 @@ public class RockwellL5XParser : IPlcProjectParser
 
         if (tasksElement != null)
         {
-            foreach (var taskElement in tasksElement.Elements("Task"))
+            foreach (var taskElement in Content(tasksElement, "Task"))
             {
                 var task = new TaskInfo
                 {
@@ -137,7 +151,7 @@ public class RockwellL5XParser : IPlcProjectParser
 
         if (programsElement != null)
         {
-            foreach (var programElement in programsElement.Elements("Program"))
+            foreach (var programElement in Content(programsElement, "Program"))
             {
                 var routines = ParseRoutines(programElement);
                 var localTags = ParseProgramTags(programElement);
@@ -166,10 +180,11 @@ public class RockwellL5XParser : IPlcProjectParser
         var aoisElement = root.Element("Controller")?.Element("AddOnInstructionDefinitions");
         if (aoisElement != null)
         {
-            foreach (var aoiElement in aoisElement.Elements("AddOnInstructionDefinition"))
+            foreach (var aoiElement in Content(aoisElement, "AddOnInstructionDefinition"))
             {
                 var routines = ParseRoutines(aoiElement);
-                var parameters = ParseAoiParameters(aoiElement);
+                // Parameters first (call signature), then the AOI's private local tags.
+                var parameters = ParseAoiParameters(aoiElement).Concat(ParseAoiLocalTags(aoiElement)).ToList();
 
                 var aoi = new ProgramInfo
                 {
@@ -200,19 +215,21 @@ public class RockwellL5XParser : IPlcProjectParser
 
         if (routinesElement != null)
         {
-            foreach (var routineElement in routinesElement.Elements("Routine"))
+            foreach (var routineElement in Content(routinesElement, "Routine"))
             {
                 var rungs = ParseRungs(routineElement);
+                var language = DetermineLanguage(routineElement);
 
                 var routine = new RoutineInfo
                 {
                     Name = routineElement.Attribute("Name")?.Value ?? "Unknown",
                     Type = routineElement.Attribute("Type")?.Value ?? "Main",
-                    Language = DetermineLanguage(routineElement),
+                    Language = language,
                     ProgramName = parentElement.Attribute("Name")?.Value,
                     Description = routineElement.Element("Description")?.Value,
                     RungCount = rungs.Count,
-                    Rungs = rungs
+                    Rungs = rungs,
+                    Source = language == "ST" ? ParseStructuredText(routineElement) : null
                 };
                 routines.Add(routine);
             }
@@ -243,7 +260,7 @@ public class RockwellL5XParser : IPlcProjectParser
     private IReadOnlyList<RungInfo> ParseRungs(XElement routineElement)
     {
         var rungs = new List<RungInfo>();
-        var rllContent = routineElement.Element("RLLContent");
+        var rllContent = OriginalContent(routineElement, "RLLContent");
 
         if (rllContent != null)
         {
@@ -251,16 +268,23 @@ public class RockwellL5XParser : IPlcProjectParser
             foreach (var rungElement in rllContent.Elements("Rung"))
             {
                 var instructions = ParseInstructions(rungElement);
+                var editState = rungElement.Attribute("Type")?.Value ?? "N";
+                var number = int.TryParse(rungElement.Attribute("Number")?.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var n)
+                    ? n
+                    : rungNumber;
+                rungNumber = number + 1;
 
                 var rung = new RungInfo
                 {
-                    Number = rungNumber++,
-                    Comment = rungElement.Element("Comment")?.Value,
-                    Text = rungElement.Element("Text")?.Value,
+                    Number = number,
+                    Comment = rungElement.Element("Comment")?.Value.Trim(),
+                    Text = rungElement.Element("Text")?.Value.Trim(),
                     Instructions = instructions,
+                    // Rung@Type is the online-edit state (N = normal), not the language.
+                    EditState = editState,
                     Properties = new Dictionary<string, string>
                     {
-                        ["Type"] = rungElement.Attribute("Type")?.Value ?? "N"
+                        ["Type"] = editState
                     }
                 };
                 rungs.Add(rung);
@@ -268,6 +292,88 @@ public class RockwellL5XParser : IPlcProjectParser
         }
 
         return rungs;
+    }
+
+    /// <summary>
+    /// Joins STContent/Line elements (0-based Number, empty lines kept) into source text.
+    /// </summary>
+    private static string? ParseStructuredText(XElement routineElement)
+    {
+        var content = OriginalContent(routineElement, "STContent");
+        if (content == null)
+            return null;
+
+        var lines = content.Elements("Line")
+            .Select((line, index) => (
+                Number: int.TryParse(line.Attribute("Number")?.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var n) ? n : index,
+                // Exports pretty-print each CDATA line with surrounding line breaks.
+                Text: line.Value.Trim('\r', '\n')))
+            .OrderBy(l => l.Number)
+            .Select(l => l.Text);
+        return string.Join("\n", lines);
+    }
+
+    private IReadOnlyList<DataTypeInfo> ParseDataTypes(XElement root)
+    {
+        var dataTypes = new List<DataTypeInfo>();
+        foreach (var typeElement in Content(root.Element("Controller")?.Element("DataTypes"), "DataType"))
+        {
+            var members = typeElement.Element("Members")?.Elements("Member")
+                // BOOL members are stored as BIT members of hidden host SINTs; hide the hosts.
+                .Where(m => m.Attribute("Hidden")?.Value != "true")
+                .Select(m =>
+                {
+                    var dataType = m.Attribute("DataType")?.Value ?? "";
+                    var dimension = m.Attribute("Dimension")?.Value;
+                    var member = new DataTypeMember
+                    {
+                        Name = m.Attribute("Name")?.Value ?? "",
+                        DataType = dataType == "BIT" ? "BOOL" : dataType,
+                        Dimensions = string.IsNullOrEmpty(dimension) || dimension == "0" ? null : dimension,
+                        Description = m.Element("Description")?.Value.Trim()
+                    };
+                    foreach (var attribute in new[] { "Radix", "ExternalAccess", "Target", "BitNumber" })
+                    {
+                        if (m.Attribute(attribute) is { } a)
+                            member.Properties[attribute] = a.Value;
+                    }
+                    return member;
+                })
+                .ToList() ?? new List<DataTypeMember>();
+
+            dataTypes.Add(new DataTypeInfo
+            {
+                Name = typeElement.Attribute("Name")?.Value ?? "Unknown",
+                Kind = "Struct",
+                Description = typeElement.Element("Description")?.Value.Trim(),
+                Members = members,
+                Properties = new Dictionary<string, string>
+                {
+                    ["Family"] = typeElement.Attribute("Family")?.Value ?? "",
+                    ["Class"] = typeElement.Attribute("Class")?.Value ?? ""
+                }
+            });
+        }
+        return dataTypes;
+    }
+
+    private IReadOnlyList<TagInfo> ParseAoiLocalTags(XElement aoiElement)
+    {
+        return Content(aoiElement.Element("LocalTags"), "LocalTag")
+            .Select(local => new TagInfo
+            {
+                Name = local.Attribute("Name")?.Value ?? "Unknown",
+                DataType = local.Attribute("DataType")?.Value ?? "",
+                Scope = "AOI",
+                Usage = "Local",
+                Description = local.Element("Description")?.Value,
+                ArrayDimensions = ParseDimensions(local.Attribute("Dimensions")?.Value),
+                Properties = new Dictionary<string, string>
+                {
+                    ["ExternalAccess"] = local.Attribute("ExternalAccess")?.Value ?? ""
+                }
+            })
+            .ToList();
     }
 
     private IReadOnlyList<InstructionInfo> ParseInstructions(XElement rungElement)
@@ -390,7 +496,7 @@ public class RockwellL5XParser : IPlcProjectParser
         var tagsElement = controllerElement?.Element("Tags");
         if (tagsElement != null)
         {
-            foreach (var tagElement in tagsElement.Elements("Tag"))
+            foreach (var tagElement in Content(tagsElement, "Tag"))
             {
                 var tag = ParseTag(tagElement, "Controller");
                 tags.Add(tag);
@@ -407,7 +513,7 @@ public class RockwellL5XParser : IPlcProjectParser
 
         if (tagsElement != null)
         {
-            foreach (var tagElement in tagsElement.Elements("Tag"))
+            foreach (var tagElement in Content(tagsElement, "Tag"))
             {
                 var tag = ParseTag(tagElement, programElement.Attribute("Name")?.Value ?? "Program");
                 tags.Add(tag);
@@ -424,7 +530,7 @@ public class RockwellL5XParser : IPlcProjectParser
 
         if (paramsElement != null)
         {
-            foreach (var paramElement in paramsElement.Elements("Parameter"))
+            foreach (var paramElement in Content(paramsElement, "Parameter"))
             {
                 var param = new TagInfo
                 {
@@ -471,22 +577,7 @@ public class RockwellL5XParser : IPlcProjectParser
             }
         };
 
-        // Parse array dimensions
-        var dimensions = tagElement.Attribute("Dimensions")?.Value;
-        if (!string.IsNullOrWhiteSpace(dimensions))
-        {
-            // Skip unparseable entries rather than failing the whole project.
-            var parsed = dimensions
-                .Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(d => int.TryParse(d, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : (int?)null)
-                .Where(n => n.HasValue)
-                .Select(n => n!.Value)
-                .ToArray();
-            if (parsed.Length > 0)
-            {
-                tag.ArrayDimensions = parsed;
-            }
-        }
+        tag.ArrayDimensions = ParseDimensions(tagElement.Attribute("Dimensions")?.Value);
 
         // Parse initial value if present
         var dataElement = tagElement.Element("Data");
@@ -504,6 +595,24 @@ public class RockwellL5XParser : IPlcProjectParser
         return tag;
     }
 
+    /// <summary>
+    /// Tag dimensions are space-separated in L5X ("2 3"); decorated data uses commas.
+    /// Unparseable entries are skipped rather than failing the whole project.
+    /// </summary>
+    private static int[]? ParseDimensions(string? dimensions)
+    {
+        if (string.IsNullOrWhiteSpace(dimensions))
+            return null;
+
+        var parsed = dimensions
+            .Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(d => int.TryParse(d, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : (int?)null)
+            .Where(n => n.HasValue)
+            .Select(n => n!.Value)
+            .ToArray();
+        return parsed.Length > 0 ? parsed : null;
+    }
+
     private IReadOnlyList<IoModuleInfo> ParseModules(XElement root)
     {
         var modules = new List<IoModuleInfo>();
@@ -511,18 +620,33 @@ public class RockwellL5XParser : IPlcProjectParser
 
         if (modulesElement != null)
         {
-            foreach (var moduleElement in modulesElement.Elements("Module"))
+            foreach (var moduleElement in Content(modulesElement, "Module"))
             {
                 var catalogNumber = moduleElement.Attribute("CatalogNumber")?.Value ?? "";
+                var name = moduleElement.Attribute("Name")?.Value ?? "Unknown";
+                var parent = moduleElement.Attribute("ParentModule")?.Value;
+                var ports = moduleElement.Element("Ports")?.Elements("Port").ToList() ?? new List<XElement>();
+
+                // Slot or IP address is the Address of the module's upstream port
+                // (the port connecting it to its parent), not a module attribute.
+                // The controller has no upstream port; its slot is its own backplane port.
+                var upstream = ports.FirstOrDefault(p => p.Attribute("Upstream")?.Value == "true")
+                    ?? (parent == name ? ports.FirstOrDefault(p => p.Attribute("Type")?.Value == "ICP") : null);
+                var address = upstream?.Attribute("Address")?.Value;
+                var portType = upstream?.Attribute("Type")?.Value;
+                string? location = address == null
+                    ? null
+                    : portType is "Ethernet" ? address : $"Slot {address}";
                 var module = new IoModuleInfo
                 {
-                    Name = moduleElement.Attribute("Name")?.Value ?? "Unknown",
+                    Name = name,
                     CatalogNumber = catalogNumber,
                     Type = DetermineModuleType(catalogNumber),
                     Vendor = moduleElement.Attribute("Vendor")?.Value ?? "Rockwell Automation",
-                    Location = $"Slot {moduleElement.Attribute("Slot")?.Value ?? "?"}",
-                    CommFormat = moduleElement.Element("Communications")?.Element("ConfigTag")?.Attribute("ConfigSize")?.Value,
-                    ParentModule = moduleElement.Attribute("ParentModule")?.Value,
+                    Location = location,
+                    CommFormat = moduleElement.Element("Communications")?.Attribute("CommMethod")?.Value,
+                    // The controller ("Local") lists itself as its own parent.
+                    ParentModule = parent == name ? null : parent,
                     Properties = new Dictionary<string, string>
                     {
                         ["Major"] = moduleElement.Attribute("Major")?.Value ?? "",
@@ -530,13 +654,11 @@ public class RockwellL5XParser : IPlcProjectParser
                         ["ProductCode"] = moduleElement.Attribute("ProductCode")?.Value ?? "",
                         ["ProductType"] = moduleElement.Attribute("ProductType")?.Value ?? "",
                         ["Inhibited"] = moduleElement.Attribute("Inhibited")?.Value ?? "false",
-                        ["MajorFault"] = moduleElement.Attribute("MajorFault")?.Value ?? "false"
+                        ["MajorFault"] = moduleElement.Attribute("MajorFault")?.Value ?? "false",
+                        ["ParentModPortId"] = moduleElement.Attribute("ParentModPortId")?.Value ?? "",
+                        ["PortType"] = portType ?? ""
                     }
                 };
-
-                // Parse ports for channel count
-                var ports = moduleElement.Element("Ports")?.Elements("Port").Count() ?? 0;
-                module.ChannelCount = ports;
 
                 modules.Add(module);
             }

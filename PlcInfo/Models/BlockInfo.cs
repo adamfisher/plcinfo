@@ -41,6 +41,16 @@ public record BlockInfo
     public int NetworkCount { get; set; }
 
     /// <summary>
+    /// Networks of the block, in order.
+    /// </summary>
+    public IReadOnlyList<NetworkInfo> Networks { get; set; } = Array.Empty<NetworkInfo>();
+
+    /// <summary>
+    /// Source text of a textual block (SCL, STL/AWL).
+    /// </summary>
+    public string? Source { get; set; }
+
+    /// <summary>
     /// Interface definition (for FBs).
     /// </summary>
     public Dictionary<string, string> Interface { get; set; } = new();

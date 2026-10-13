@@ -46,6 +46,16 @@ public record RoutineInfo
     public IReadOnlyList<RungInfo> Rungs { get; set; } = Array.Empty<RungInfo>();
 
     /// <summary>
+    /// Source text of a textual routine (Structured Text, IL, STL), one line per source line.
+    /// </summary>
+    public string? Source { get; set; }
+
+    /// <summary>
+    /// Networks of a graphical routine whose logic is not rung text (e.g. PLCopen LD/FBD).
+    /// </summary>
+    public IReadOnlyList<NetworkInfo> Networks { get; set; } = Array.Empty<NetworkInfo>();
+
+    /// <summary>
     /// Size in bytes if available.
     /// </summary>
     public long? SizeBytes { get; set; }
