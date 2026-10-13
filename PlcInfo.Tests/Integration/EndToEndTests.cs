@@ -184,8 +184,7 @@ public class EndToEndTests : IDisposable
             ("test.export", "CODESYS"),
             ("test.tpy", "Beckhoff"),
             ("test.ap17", "Siemens"),
-            ("test.s7p", "Siemens"),
-            ("test.acd", "Rockwell Automation")
+            ("test.s7p", "Siemens")
         };
 
         // Act & Assert
@@ -215,6 +214,18 @@ public class EndToEndTests : IDisposable
             project.Should().NotBeNull();
             project.Vendor.Should().Be(expectedVendor);
         }
+
+        // .ACD resolves to the ACD parser, which rejects a file that is not a real ACD
+        // (an ACD is not a ZIP archive) instead of returning an empty project.
+        var acdParser = _parserRegistry.ResolveForFile("test.acd");
+        acdParser.Should().BeOfType<RockwellAcdParser>();
+        var acdFile = Path.Combine(_tempDirectory, "test.acd");
+        using (var archive = ZipFile.Open(acdFile, ZipArchiveMode.Create))
+        {
+            archive.CreateEntry("dummy.txt");
+        }
+        var parseAcd = async () => await acdParser.ParseAsync(acdFile);
+        await parseAcd.Should().ThrowAsync<InvalidOperationException>();
     }
 
     [Fact]

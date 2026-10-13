@@ -12,7 +12,16 @@ PLCInfo provides a unified interface to read and analyze PLC project files from 
 
 - **Rockwell Automation**
   - `.L5X` (Logix 5000 Export files)
-  - `.ACD` (RSLogix/Studio 5000 Archive files)
+  - `.ACD` (RSLogix/Studio 5000 project files), **partial support**. Rockwell does not
+    document the ACD format; plcinfo reads it using layouts reverse-engineered by
+    [hutcheb/acd](https://github.com/hutcheb/acd) (Apache-2.0), with no Rockwell software
+    needed. It reads the controller, tasks, programs, routines and their languages, ladder
+    rung text, Add-On Instruction names and routines, user-defined types, module identities,
+    and tags (name, data type, dimensions, description, external access). It does not read
+    Structured Text, FBD or SFC bodies, comments on rungs, programs, routines or modules,
+    tag values, alias targets, parameter usage, or module configuration. Tags with External
+    Access "None" are not stored in the ACD's tag index and are left out. Results carry
+    `ParseStatus: Partial` and a warning. For complete content, export to L5X from Studio 5000.
 - **Siemens**
   - `.s7p` (Step 7 Project archives)
   - TIA Portal project files
