@@ -217,6 +217,6 @@ END_FUNCTION_BLOCK", "multi.awl");
 
         var project = await new CodesysParser().ParseAsync(path);
 
-        project.Programs.Should().ContainSingle(p => p.Name == "Main").Which.Type.Should().Be("program");
+        project.Programs.Should().ContainSingle(p => p.Name == "Main").Which.Type.Should().Be("Program");
     }
 }

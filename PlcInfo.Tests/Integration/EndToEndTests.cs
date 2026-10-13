@@ -202,7 +202,13 @@ public class EndToEndTests : IDisposable
                 // TwinCAT rejects XML that is not a TwinCAT project instead of returning an empty one.
                 await File.WriteAllTextAsync(testFile, "<?xml version='1.0'?><TcSmProject/>");
             }
-            else if (filename.EndsWith(".L5X") || filename.EndsWith(".export"))
+            else if (filename.EndsWith(".export"))
+            {
+                // The PLCopen parser rejects XML that is not a PLCopen project, so give it the smallest real one.
+                await File.WriteAllTextAsync(testFile,
+                    "<?xml version='1.0'?><project xmlns='http://www.plcopen.org/xml/tc6_0200'><fileHeader productName='CODESYS'/></project>");
+            }
+            else if (filename.EndsWith(".L5X"))
             {
                 await File.WriteAllTextAsync(testFile, "<?xml version='1.0'?><root/>");
             }

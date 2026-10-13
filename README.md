@@ -32,7 +32,15 @@ PLCInfo provides a unified interface to read and analyze PLC project files from 
   - Step 7 Classic project folders and `.s7p` archives (block list only)
   - TIA Portal project files (`.apXX`) and archives (`.zapXX`) are **not** readable: their format is
     proprietary and undocumented. plcinfo recognizes them and explains how to export SimaticML instead.
-- **CODESYS** project files
+- **CODESYS and other PLCopen XML tools** (Beremiz, OpenPLC Editor, ctrlX PLC, TwinCAT PLC Control)
+  - `.xml` PLCopen XML exports (TC6 v2.0/v2.01). In CODESYS use *Project > Export PLCopenXML...*;
+    binary `.project` and `.library` files cannot be read and are rejected with that advice.
+  - POUs with ST/IL source, LD/FBD/CFC networks and SFC step/transition summaries; DUTs
+    (struct, union, enum, array, pointer, subrange, alias); tasks; GVLs; and the CODESYS
+    extensions for methods, properties, interfaces, inheritance and the device tree.
+  - Ladder networks are written as canonical text for diffs, e.g. `XIC(a) [XIC(b) , XIO(c)] OTE(d)`
+    (contacts `XIC`/`XIO`/`XICP`/`XICN`, coils `OTE`/`OTN`/`OTL`/`OTU`); FBD as assignments,
+    e.g. `out := ADD(IN1 := x, IN2 := 1)`.
 - **Beckhoff TwinCAT 3**
   - `.tsproj` (system manager project): tasks, the I/O tree (EtherCAT devices and nested boxes) with
     PLC variable links, and every referenced PLC project (via `PrjFilePath` or an `_Config/PLC/*.xti` file)

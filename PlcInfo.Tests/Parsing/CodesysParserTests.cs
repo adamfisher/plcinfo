@@ -31,6 +31,7 @@ public class CodesysParserTests : IDisposable
     [InlineData("test.PROJECT", true)]
     [InlineData("test.export", true)]
     [InlineData("test.EXPORT", true)]
+    [InlineData("test.library", true)]
     [InlineData("test.xml", false)]
     [InlineData("test.L5X", false)]
     [InlineData("test.txt", false)]
@@ -152,7 +153,7 @@ bRunning := bEnable AND (rSpeed > 0);
         // Assert
         result.Should().NotBeNull();
         result.Vendor.Should().Be("CODESYS");
-        result.Format.Should().Be("CODESYS Export");
+        result.Format.Should().Be("PLCopen XML (tc6_0201)");
         result.FilePath.Should().Be(testFile);
 
         // Programs assertions
@@ -160,7 +161,7 @@ bRunning := bEnable AND (rSpeed > 0);
 
         var plcPrg = result.Programs.FirstOrDefault(p => p.Name == "PLC_PRG");
         plcPrg.Should().NotBeNull();
-        plcPrg!.Type.Should().Be("program");
+        plcPrg!.Type.Should().Be("Program");
         plcPrg.Language.Should().Be("ST");
         plcPrg.LocalTags.Should().HaveCount(2);
         plcPrg.LocalTags.Any(t => t.Name == "bStart" && t.DataType == "BOOL").Should().BeTrue();
@@ -168,7 +169,7 @@ bRunning := bEnable AND (rSpeed > 0);
 
         var fbMotor = result.Programs.FirstOrDefault(p => p.Name == "FB_Motor");
         fbMotor.Should().NotBeNull();
-        fbMotor!.Type.Should().Be("functionBlock");
+        fbMotor!.Type.Should().Be("FunctionBlock");
         fbMotor.LocalTags.Should().HaveCount(3);
         fbMotor.LocalTags.Any(t => t.Name == "bEnable" && t.Usage == "Input").Should().BeTrue();
         fbMotor.LocalTags.Any(t => t.Name == "rSpeed" && t.Usage == "Input").Should().BeTrue();
@@ -186,6 +187,9 @@ bRunning := bEnable AND (rSpeed > 0);
         result.Tasks[0].Priority.Should().Be(1);
         result.Tasks[0].Type.Should().Be("Periodic");
         result.Tasks[0].Rate.Should().Be(10); // 10ms interval
+        result.Tasks[0].ProgramNames.Should().Equal("PLC_PRG");
+        plcPrg.TaskName.Should().Be("MainTask");
+        plcPrg.Routines.Single().Source.Should().Contain("iCounter := iCounter + 1;");
 
         // Metadata
         result.Metadata.Should().ContainKey("CompanyName");
@@ -209,7 +213,7 @@ bRunning := bEnable AND (rSpeed > 0);
     }
 
     [Fact]
-    public async Task ParseAsync_WithInvalidXml_ThrowsException()
+    public async Task ParseAsync_WithInvalidXml_ThrowsInvalidOperationException()
     {
         // Arrange
         var invalidContent = "This is not valid XML";
@@ -220,7 +224,7 @@ bRunning := bEnable AND (rSpeed > 0);
         var action = async () => await _parser.ParseAsync(testFile);
 
         // Assert
-        await action.Should().ThrowAsync<System.Xml.XmlException>();
+        await action.Should().ThrowAsync<InvalidOperationException>().WithMessage("*not well-formed XML*");
     }
 
     [Fact]

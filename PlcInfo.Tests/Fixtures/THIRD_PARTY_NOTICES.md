@@ -51,11 +51,17 @@ its original license; license texts are in `LICENSES/`.
 | `Siemens/Smart_Factory/udt_Fifo.xml` | [asier-vega-gutierrez/Smart_Factory](https://github.com/asier-vega-gutierrez/Smart_Factory) `src/PLCDataTypes/udt_Fifo.xml` | `a2fdad2cd4643facb8d175d04ff896fc42c29ad7` | Apache-2.0 (`LICENSES/Apache-2.0.txt`) |
 | `Siemens/BlockParam/v20-real-export-db.xml` | [Sawascwoolf/BlockParam](https://github.com/Sawascwoolf/BlockParam) `src/BlockParam.Tests/Fixtures/v20-real-export-db.xml` | `112d4b2b089de477e31d8fa9fee05c37837e33fb` | MIT, Copyright (c) 2026 Sawascwoolf (`LICENSES/MIT-Sawascwoolf.txt`) |
 | `Step7/planken/MOTOR.awl` | [planken/Step7](https://github.com/planken/Step7) `MOTOR/MOTOR.awl` | `d63ec350ca4da3fcc3b5b4ed83664f3882317477` | CC0-1.0 (`LICENSES/CC0-1.0.txt`) |
+| `PLCopen/robin_codesys_project.xml` | [ScalABLE40/robin](https://github.com/ScalABLE40/robin) `robin_updater/cfg/codesys_project.xml` (branch `noetic`; renamed) | `deb159a61039b740196a1507e67aa20af0edb673` | Apache-2.0 (`LICENSES/Apache-2.0.txt`) |
+| `PLCopen/CODESYS_HashTable_Struct_Example.xml` | [enakata06/CODESYS_HashTable_Struct_Example](https://github.com/enakata06/CODESYS_HashTable_Struct_Example) `CODESYS_HashTable_Struct_Example.xml` | `8c9cddd72346554651fa9d1bfdd7b0e47f23a1ba` | MIT, Copyright (c) 2025 Eisuke Nakata (`LICENSES/MIT-enakata06.txt`) |
+| `PLCopen/codesys_code_execution_speedTests.xml` | [tkucic/codesys_code_execution_speedTests](https://github.com/tkucic/codesys_code_execution_speedTests) `codesys_code_execution_speedTests.xml` | `36db28d2485de68665e1606f3040331b6610d7ae` | MIT, Copyright (c) 2022 Toni Kucic (`LICENSES/MIT-tkucic.txt`) |
+| `PLCopen/OpenPLC_AND_plc.xml` | [sarincr/PLC-Programming-using-OpenPLC](https://github.com/sarincr/PLC-Programming-using-OpenPLC) `02.AND/plc.xml` (renamed) | `7ee69533141a9541875ab1dfd817a70e651fb945` | MIT, Copyright (c) 2021 Sarin CR (`LICENSES/MIT-sarincr.txt`) |
 
 None of the Apache-2.0 source repositories ships a `NOTICE` file at the pinned commit. None of the
 Beckhoff fixture repositories (0BSD, MIT) ships a `NOTICE` file either. The HotConnect fixture is
 a subset of the project: its visualisation, class diagram and text list files are not vendored
 (plcinfo does not read them).
+`PLCopen/HandWritten_LD_FBD_SFC.xml` is not third-party: it was written by hand for plcinfo's tests
+(see the comment at the top of the file) and is covered by plcinfo's own MIT license.
 
 ## Ported code
 
