@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Xml.Linq;
 using PlcInfo.Models;
 
@@ -20,16 +21,17 @@ public class RockwellL5XParser : IPlcProjectParser
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"File not found: {filePath}");
 
-        var xml = await File.ReadAllTextAsync(filePath, cancellationToken);
-
         XDocument doc;
         try
         {
-            doc = XDocument.Parse(xml);
+            // Load from a stream so the XML declaration's encoding is honoured
+            // and the file isn't buffered twice (string + DOM).
+            await using var stream = File.OpenRead(filePath);
+            doc = await XDocument.LoadAsync(stream, LoadOptions.None, cancellationToken);
         }
         catch (System.Xml.XmlException ex)
         {
-            throw new InvalidOperationException("Invalid L5X file: no root element", ex);
+            throw new InvalidOperationException($"Invalid L5X file: {ex.Message}", ex);
         }
 
         var root = doc.Root;
@@ -77,8 +79,9 @@ public class RockwellL5XParser : IPlcProjectParser
             Name = controllerElement.Attribute("Name")?.Value ?? "Unknown",
             Type = controllerElement.Attribute("ProcessorType")?.Value ?? "",
             Vendor = "Rockwell Automation",
-            FirmwareRevision = controllerElement.Attribute("MajorRev")?.Value + "." +
-                              controllerElement.Attribute("MinorRev")?.Value,
+            FirmwareRevision = FormatRevision(
+                controllerElement.Attribute("MajorRev")?.Value,
+                controllerElement.Attribute("MinorRev")?.Value),
             Properties = new Dictionary<string, string>
             {
                 ["Use"] = controllerElement.Attribute("Use")?.Value ?? "",
@@ -103,10 +106,12 @@ public class RockwellL5XParser : IPlcProjectParser
                 {
                     Name = taskElement.Attribute("Name")?.Value ?? "Unknown",
                     Type = taskElement.Attribute("Type")?.Value ?? "Continuous",
-                    Priority = int.TryParse(taskElement.Attribute("Priority")?.Value, out var p) ? p : 10,
-                    Rate = double.TryParse(taskElement.Attribute("Rate")?.Value, out var r) ? r : null,
-                    WatchdogTimeout = double.TryParse(taskElement.Attribute("Watchdog")?.Value, out var w) ? w : null,
-                    IsEnabled = !bool.TryParse(taskElement.Attribute("DisableUpdateOutputs")?.Value, out var disabled) || !disabled,
+                    Priority = int.TryParse(taskElement.Attribute("Priority")?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var p) ? p : 10,
+                    Rate = double.TryParse(taskElement.Attribute("Rate")?.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var r) ? r : null,
+                    WatchdogTimeout = double.TryParse(taskElement.Attribute("Watchdog")?.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var w) ? w : null,
+                    // InhibitTask stops the task from running; DisableUpdateOutputs only
+                    // suppresses output updates and does not mean the task is disabled.
+                    IsEnabled = !bool.TryParse(taskElement.Attribute("InhibitTask")?.Value, out var inhibited) || !inhibited,
                     ProgramNames = taskElement.Elements("ScheduledPrograms")
                         .SelectMany(sp => sp.Elements("ScheduledProgram"))
                         .Select(p => p.Attribute("Name")?.Value ?? "")
@@ -114,7 +119,8 @@ public class RockwellL5XParser : IPlcProjectParser
                         .ToList(),
                     Properties = new Dictionary<string, string>
                     {
-                        ["InhibitTask"] = taskElement.Attribute("InhibitTask")?.Value ?? "false"
+                        ["InhibitTask"] = taskElement.Attribute("InhibitTask")?.Value ?? "false",
+                        ["DisableUpdateOutputs"] = taskElement.Attribute("DisableUpdateOutputs")?.Value ?? "false"
                     }
                 };
                 tasks.Add(task);
@@ -217,6 +223,12 @@ public class RockwellL5XParser : IPlcProjectParser
 
     private string DetermineLanguage(XElement routineElement)
     {
+        // The Type attribute (RLL/ST/FBD/SFC) is authoritative and is present even
+        // on empty routines (e.g. Prescan/Postscan) that have no content element.
+        var type = routineElement.Attribute("Type")?.Value;
+        if (type is "RLL" or "ST" or "FBD" or "SFC")
+            return type;
+
         if (routineElement.Element("RLLContent") != null)
             return "RLL";
         if (routineElement.Element("STContent") != null)
@@ -260,48 +272,110 @@ public class RockwellL5XParser : IPlcProjectParser
 
     private IReadOnlyList<InstructionInfo> ParseInstructions(XElement rungElement)
     {
-        var instructions = new List<InstructionInfo>();
         var text = rungElement.Element("Text")?.Value;
+        return string.IsNullOrWhiteSpace(text)
+            ? Array.Empty<InstructionInfo>()
+            : TokenizeRung(text);
+    }
 
-        if (!string.IsNullOrEmpty(text))
+    /// <summary>
+    /// Tokenizes Logix neutral rung text such as
+    /// <c>[XIC(A),XIO(B)]CPT(Dest,(X+Y)*2)OTE(Out);</c> into instructions.
+    /// Branch brackets and branch commas are structural; operands are split on
+    /// commas that are not nested inside parentheses or array brackets.
+    /// </summary>
+    internal static IReadOnlyList<InstructionInfo> TokenizeRung(string text)
+    {
+        var instructions = new List<InstructionInfo>();
+        int i = 0;
+
+        while (i < text.Length)
         {
-            // Simple instruction parsing from text
-            var parts = text.Split(new[] { '[', ']', '(', ')', ';' }, StringSplitOptions.RemoveEmptyEntries);
-            int position = 0;
-
-            foreach (var part in parts.Where(p => !string.IsNullOrWhiteSpace(p)))
+            var c = text[i];
+            if (!(char.IsLetter(c) || c == '_'))
             {
-                var trimmed = part.Trim();
-                if (trimmed.Length > 0 && char.IsUpper(trimmed[0]))
-                {
-                    var instruction = new InstructionInfo
-                    {
-                        Mnemonic = trimmed.Split(' ')[0],
-                        Position = position++,
-                        Type = DetermineInstructionType(trimmed.Split(' ')[0]),
-                        Operands = trimmed.Contains(' ')
-                            ? trimmed.Substring(trimmed.IndexOf(' ') + 1).Split(',').Select(o => o.Trim()).ToList()
-                            : new List<string>()
-                    };
-                    instructions.Add(instruction);
-                }
+                // Whitespace, branch delimiters '[', ']', ',' and the terminating ';'.
+                i++;
+                continue;
             }
+
+            int start = i;
+            while (i < text.Length && (char.IsLetterOrDigit(text[i]) || text[i] == '_'))
+                i++;
+            var mnemonic = text[start..i];
+
+            int j = i;
+            while (j < text.Length && char.IsWhiteSpace(text[j]))
+                j++;
+
+            if (j >= text.Length || text[j] != '(')
+            {
+                // A bare identifier outside an instruction is not an instruction.
+                continue;
+            }
+
+            i = j + 1;
+            var operands = new List<string>();
+            var operand = new System.Text.StringBuilder();
+            int depth = 0;
+
+            while (i < text.Length)
+            {
+                c = text[i++];
+                if (c == '(' || c == '[')
+                {
+                    depth++;
+                }
+                else if (c == ')' || c == ']')
+                {
+                    if (depth == 0 && c == ')')
+                        break;
+                    if (depth > 0)
+                        depth--;
+                }
+                else if (c == ',' && depth == 0)
+                {
+                    operands.Add(operand.ToString().Trim());
+                    operand.Clear();
+                    continue;
+                }
+                operand.Append(c);
+            }
+
+            var last = operand.ToString().Trim();
+            if (last.Length > 0 || operands.Count > 0)
+                operands.Add(last);
+
+            instructions.Add(new InstructionInfo
+            {
+                Mnemonic = mnemonic,
+                Position = instructions.Count,
+                Type = DetermineInstructionType(mnemonic),
+                Operands = operands
+            });
         }
 
         return instructions;
     }
 
-    private string DetermineInstructionType(string mnemonic)
+    private static string FormatRevision(string? major, string? minor)
+    {
+        if (string.IsNullOrEmpty(major))
+            return string.Empty;
+        return string.IsNullOrEmpty(minor) ? major : $"{major}.{minor}";
+    }
+
+    private static string DetermineInstructionType(string mnemonic)
     {
         return mnemonic switch
         {
-            "XIC" or "XIO" or "OTL" or "OTU" => "Bit",
+            "XIC" or "XIO" or "OTL" or "OTU" or "ONS" or "OSR" or "OSF" => "Bit",
             "OTE" => "Output",
             "TON" or "TOF" or "RTO" => "Timer",
             "CTU" or "CTD" or "RES" => "Counter",
-            "MOV" or "COP" or "FLL" => "Move",
-            "ADD" or "SUB" or "MUL" or "DIV" => "Math",
-            "EQU" or "NEQ" or "LES" or "GRT" => "Compare",
+            "MOV" or "COP" or "CPS" or "FLL" => "Move",
+            "ADD" or "SUB" or "MUL" or "DIV" or "CPT" => "Math",
+            "EQU" or "NEQ" or "LES" or "GRT" or "LEQ" or "GEQ" or "LIM" => "Compare",
             "JSR" or "RET" or "JMP" or "LBL" => "Program Control",
             _ => "Function"
         };
@@ -399,9 +473,19 @@ public class RockwellL5XParser : IPlcProjectParser
 
         // Parse array dimensions
         var dimensions = tagElement.Attribute("Dimensions")?.Value;
-        if (!string.IsNullOrEmpty(dimensions))
+        if (!string.IsNullOrWhiteSpace(dimensions))
         {
-            tag.ArrayDimensions = dimensions.Split(' ').Select(int.Parse).ToArray();
+            // Skip unparseable entries rather than failing the whole project.
+            var parsed = dimensions
+                .Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(d => int.TryParse(d, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : (int?)null)
+                .Where(n => n.HasValue)
+                .Select(n => n!.Value)
+                .ToArray();
+            if (parsed.Length > 0)
+            {
+                tag.ArrayDimensions = parsed;
+            }
         }
 
         // Parse initial value if present

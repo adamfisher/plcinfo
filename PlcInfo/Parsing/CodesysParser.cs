@@ -760,25 +760,25 @@ public class CodesysParser : IPlcProjectParser
         return vendor ?? "CODESYS";
     }
 
-    private static void StripNamespaces(XElement element)
+    private static readonly XNamespace Xsi = "http://www.w3.org/2001/XMLSchema-instance";
+
+    private static void StripNamespaces(XElement root)
     {
-        element.Name = element.Name.LocalName;
-
-        // Remove namespace from attributes
-        var attributes = element.Attributes().ToList();
-        element.RemoveAttributes();
-        foreach (var attr in attributes)
+        // Iterative: recursion overflowed the stack (uncatchable) on deeply nested XML.
+        foreach (var element in root.DescendantsAndSelf().ToList())
         {
-            if (!attr.IsNamespaceDeclaration)
+            element.Name = element.Name.LocalName;
+
+            var attributes = element.Attributes().ToList();
+            element.RemoveAttributes();
+            foreach (var attr in attributes)
             {
-                element.SetAttributeValue(attr.Name.LocalName, attr.Value);
+                // Drop xsi:* so xsi:type can't overwrite a real "type" attribute.
+                if (!attr.IsNamespaceDeclaration && attr.Name.Namespace != Xsi)
+                {
+                    element.SetAttributeValue(attr.Name.LocalName, attr.Value);
+                }
             }
-        }
-
-        // Recursively process child elements
-        foreach (var child in element.Elements())
-        {
-            StripNamespaces(child);
         }
     }
 }

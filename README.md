@@ -56,7 +56,7 @@ If you prefer to build from source:
 
 **Using the build script (Windows):**
 ```powershell
-git clone https://github.com/yourusername/plcinfo.git
+git clone https://github.com/adamfisher/plcinfo.git
 cd plcinfo
 .\Build.ps1
 ```
@@ -65,7 +65,7 @@ The executable will be created in `publish/win-x64/plcinfo.exe`
 
 **Manual build:**
 ```bash
-git clone https://github.com/yourusername/plcinfo.git
+git clone https://github.com/adamfisher/plcinfo.git
 cd plcinfo
 dotnet build
 ```
@@ -197,7 +197,7 @@ plcinfo diff old.ACD new.ACD --format md
 - I/O configuration
 - Controller settings
 
-Exit code is `1` if differences are found, `0` if identical (useful for CI/CD).
+Exit code is `0` if identical, `1` if differences are found, and `2` if a file could not be read or parsed (useful for CI/CD).
 
 #### `export` - Export to Neutral Format
 

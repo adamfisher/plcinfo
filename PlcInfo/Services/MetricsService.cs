@@ -12,6 +12,10 @@ public class MetricsService
     /// </summary>
     public MetricsSummary CalculateMetrics(PlcProject project)
     {
+        // Program-scoped tags live on ProgramInfo.LocalTags, not PlcProject.Tags.
+        var allTags = AllTags(project);
+        var languageDistribution = CalculateLanguageDistribution(project);
+
         var metrics = new MetricsSummary
         {
             TotalPrograms = project.Programs.Count,
@@ -19,25 +23,30 @@ public class MetricsService
             TotalRungs = project.Programs.SelectMany(p => p.Routines).Sum(r => r.RungCount),
             TotalBlocks = project.Blocks.Count,
             TotalNetworks = project.Blocks.Sum(b => b.NetworkCount),
-            TotalTags = project.Tags.Count,
-            GlobalTags = project.Tags.Count(t => t.Scope.Equals("Global", StringComparison.OrdinalIgnoreCase) ||
-                                                  t.Scope.Equals("Controller", StringComparison.OrdinalIgnoreCase)),
-            LocalTags = project.Tags.Count(t => !t.Scope.Equals("Global", StringComparison.OrdinalIgnoreCase) &&
-                                                 !t.Scope.Equals("Controller", StringComparison.OrdinalIgnoreCase)),
-            IoTags = project.Tags.Count(t => t.IsIoTag),
+            TotalTags = allTags.Count,
+            GlobalTags = allTags.Count(IsGlobalScope),
+            LocalTags = allTags.Count(t => !IsGlobalScope(t)),
+            IoTags = allTags.Count(t => t.IsIoTag),
             TotalIoModules = project.IoModules.Count,
             InputModules = CountInputModules(project.IoModules),
             OutputModules = CountOutputModules(project.IoModules),
             TotalTasks = project.Tasks.Count,
             TotalInstructions = CountInstructions(project),
-            LanguageDistribution = CalculateLanguageDistribution(project),
-            DataTypeDistribution = CalculateDataTypeDistribution(project),
-            ComplexityScore = CalculateComplexityScore(project),
-            TotalMemoryBytes = EstimateMemoryUsage(project)
+            LanguageDistribution = languageDistribution,
+            DataTypeDistribution = CalculateDataTypeDistribution(allTags),
+            ComplexityScore = CalculateComplexityScore(project, allTags.Count, languageDistribution.Count),
+            TotalMemoryBytes = EstimateMemoryUsage(project, allTags.Count)
         };
 
         return metrics;
     }
+
+    private static List<TagInfo> AllTags(PlcProject project) =>
+        project.Tags.Concat(project.Programs.SelectMany(p => p.LocalTags)).ToList();
+
+    private static bool IsGlobalScope(TagInfo tag) =>
+        tag.Scope.Equals("Global", StringComparison.OrdinalIgnoreCase) ||
+        tag.Scope.Equals("Controller", StringComparison.OrdinalIgnoreCase);
 
     private int CountInputModules(IReadOnlyList<IoModuleInfo> modules)
     {
@@ -65,56 +74,40 @@ public class MetricsService
     {
         var distribution = new Dictionary<string, int>();
 
-        // Count from programs
+        void Count(string? language)
+        {
+            if (!string.IsNullOrEmpty(language))
+                distribution[language] = distribution.GetValueOrDefault(language) + 1;
+        }
+
         foreach (var program in project.Programs)
         {
-            if (!string.IsNullOrEmpty(program.Language))
+            // A program's language is a summary of its routines, so only fall back
+            // to it when there are no routines; otherwise it would be counted twice.
+            if (program.Routines.Count == 0)
             {
-                if (distribution.ContainsKey(program.Language))
-                    distribution[program.Language]++;
-                else
-                    distribution[program.Language] = 1;
+                Count(program.Language);
+                continue;
             }
 
-            // Count from routines
             foreach (var routine in program.Routines)
-            {
-                if (!string.IsNullOrEmpty(routine.Language))
-                {
-                    if (distribution.ContainsKey(routine.Language))
-                        distribution[routine.Language]++;
-                    else
-                        distribution[routine.Language] = 1;
-                }
-            }
+                Count(routine.Language);
         }
 
-        // Count from blocks
         foreach (var block in project.Blocks)
-        {
-            if (!string.IsNullOrEmpty(block.Language))
-            {
-                if (distribution.ContainsKey(block.Language))
-                    distribution[block.Language]++;
-                else
-                    distribution[block.Language] = 1;
-            }
-        }
+            Count(block.Language);
 
         return distribution;
     }
 
-    private Dictionary<string, int> CalculateDataTypeDistribution(PlcProject project)
+    private Dictionary<string, int> CalculateDataTypeDistribution(IReadOnlyList<TagInfo> tags)
     {
         var distribution = new Dictionary<string, int>();
 
-        foreach (var tag in project.Tags)
+        foreach (var tag in tags)
         {
             var dataType = NormalizeDataType(tag.DataType);
-            if (distribution.ContainsKey(dataType))
-                distribution[dataType]++;
-            else
-                distribution[dataType] = 1;
+            distribution[dataType] = distribution.GetValueOrDefault(dataType) + 1;
         }
 
         return distribution;
@@ -128,16 +121,18 @@ public class MetricsService
         // Extract base type from complex types
         if (dataType.StartsWith("ARRAY", StringComparison.OrdinalIgnoreCase))
         {
-            var ofIndex = dataType.IndexOf("OF", StringComparison.OrdinalIgnoreCase);
-            if (ofIndex > 0 && ofIndex + 2 < dataType.Length)
+            // Search after the bounds so names like MAX_OFFSET inside [...] don't match.
+            var boundsEnd = dataType.LastIndexOf(']');
+            var ofIndex = dataType.IndexOf(" OF ", Math.Max(boundsEnd, 0), StringComparison.OrdinalIgnoreCase);
+            if (ofIndex > 0)
             {
-                return "ARRAY OF " + dataType.Substring(ofIndex + 3).Trim();
+                return "ARRAY OF " + NormalizeDataType(dataType[(ofIndex + 4)..].Trim());
             }
             return "ARRAY";
         }
 
         // Common normalizations
-        var normalized = dataType.ToUpper();
+        var normalized = dataType.ToUpperInvariant();
         normalized = normalized switch
         {
             "BOOLEAN" => "BOOL",
@@ -151,7 +146,7 @@ public class MetricsService
         return normalized;
     }
 
-    private double CalculateComplexityScore(PlcProject project)
+    private double CalculateComplexityScore(PlcProject project, int tagCount, int languageCount)
     {
         double score = 0;
 
@@ -168,21 +163,20 @@ public class MetricsService
         score += Math.Min(totalNetworks / 50.0, 10);
 
         // Complexity from tag count
-        score += Math.Min(project.Tags.Count / 100.0, 10);
+        score += Math.Min(tagCount / 100.0, 10);
 
         // Language diversity
-        var languages = CalculateLanguageDistribution(project).Keys.Count;
-        score += Math.Min(languages * 2, 10);
+        score += Math.Min(languageCount * 2, 10);
 
         return Math.Min(score, 100);
     }
 
-    private long? EstimateMemoryUsage(PlcProject project)
+    private long? EstimateMemoryUsage(PlcProject project, int tagCount)
     {
         long totalBytes = 0;
 
         // Estimate based on tags (assume average 4 bytes per tag)
-        totalBytes += project.Tags.Count * 4;
+        totalBytes += tagCount * 4L;
 
         // Estimate based on programs
         foreach (var program in project.Programs)

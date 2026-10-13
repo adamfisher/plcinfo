@@ -13,8 +13,16 @@ public class SearchCommand : BaseFileCommand
     [Option('k', "kind", Required = false, HelpText = "Search kind (tag, comment, instruction)")]
     public string? Kind { get; set; }
 
+    private static readonly string[] ValidKinds = { "tag", "comment", "instruction" };
+
     public async Task<int> Execute(IPlcParserRegistry parserRegistry)
     {
+        if (Kind != null && !ValidKinds.Contains(Kind, StringComparer.OrdinalIgnoreCase))
+        {
+            Console.Error.WriteLine($"Error: Unknown search kind '{Kind}'. Expected one of: {string.Join(", ", ValidKinds)}.");
+            return 1;
+        }
+
         try
         {
             var parser = parserRegistry.ResolveForFile(FilePath);

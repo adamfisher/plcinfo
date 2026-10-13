@@ -36,8 +36,10 @@ public class DiffCommand
         }
         catch (Exception ex)
         {
+            // Like diff(1): 0 = identical, 1 = differences, 2 = error, so CI can
+            // tell "changed" apart from "couldn't compare".
             Console.Error.WriteLine($"Error: {ex.Message}");
-            return 1;
+            return 2;
         }
     }
 }

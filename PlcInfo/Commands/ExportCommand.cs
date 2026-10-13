@@ -16,8 +16,10 @@ public class ExportCommand
     [Option('o', "output", Required = false, HelpText = "Output file path (default: stdout)")]
     public string? OutputPath { get; set; }
 
-    [Option('i', "indent", Required = false, Default = true, HelpText = "Indent JSON output")]
-    public bool Indent { get; set; } = true;
+    // Nullable so the option takes a value: a plain bool is a presence-only switch,
+    // which made "--indent false" impossible.
+    [Option('i', "indent", Required = false, HelpText = "Indent JSON output: true or false (default: true)")]
+    public bool? Indent { get; set; }
 
     public async Task<int> Execute(IPlcParserRegistry parserRegistry)
     {
@@ -30,7 +32,7 @@ public class ExportCommand
             {
                 var options = new JsonSerializerOptions
                 {
-                    WriteIndented = Indent,
+                    WriteIndented = Indent ?? true,
                     PropertyNamingPolicy = JsonNamingPolicy.CamelCase
                 };
 

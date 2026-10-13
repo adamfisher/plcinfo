@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using PlcInfo.Models;
 
@@ -474,18 +475,29 @@ public class SiemensTiaPortalParser : IPlcProjectParser
         return tags;
     }
 
-    private string DetermineTagScope(string filePath)
+    internal static string DetermineTagScope(string filePath)
     {
-        if (filePath.Contains("PlcTagTable", StringComparison.OrdinalIgnoreCase))
+        // Only look at the file name and its folder. The full path includes the
+        // random temp extraction directory (tia_{guid}), whose hex digits often
+        // contain "fb"/"fc" and made the scope nondeterministic.
+        var fileName = Path.GetFileName(filePath);
+        var folder = Path.GetFileName(Path.GetDirectoryName(filePath) ?? string.Empty);
+        var segments = new[] { fileName, folder };
+
+        if (segments.Any(s => s.Contains("PlcTagTable", StringComparison.OrdinalIgnoreCase)))
             return "Global";
-        if (filePath.Contains("DataBlock", StringComparison.OrdinalIgnoreCase))
+        if (segments.Any(s => s.Contains("DataBlock", StringComparison.OrdinalIgnoreCase)))
             return "DB";
-        if (filePath.Contains("FB", StringComparison.OrdinalIgnoreCase))
+        if (segments.Any(s => BlockToken("FB").IsMatch(s)))
             return "FB";
-        if (filePath.Contains("FC", StringComparison.OrdinalIgnoreCase))
+        if (segments.Any(s => BlockToken("FC").IsMatch(s)))
             return "FC";
         return "Local";
     }
+
+    // Matches FB/FC as a standalone token (e.g. "FB10", "My_FC.xml"), not inside words.
+    private static Regex BlockToken(string prefix) =>
+        new($@"(^|[^A-Za-z]){prefix}(\d|[^A-Za-z]|$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     private void ParseHardwareConfiguration(string hwPath, ProjectData projectData)
     {

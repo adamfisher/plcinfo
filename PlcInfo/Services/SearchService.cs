@@ -18,24 +18,26 @@ public class SearchService
         if (string.IsNullOrWhiteSpace(searchText))
             return results;
 
-        var searchLower = searchText.ToLower();
+        // Matching uses OrdinalIgnoreCase: no per-item allocations and no
+        // culture surprises (e.g. Turkish dotless i).
+        var query = searchText;
 
         // Search in tags
         if (kind == null || kind.Equals("tag", StringComparison.OrdinalIgnoreCase))
         {
-            results.AddRange(SearchTags(project, searchLower));
+            results.AddRange(SearchTags(project, query));
         }
 
         // Search in comments
         if (kind == null || kind.Equals("comment", StringComparison.OrdinalIgnoreCase))
         {
-            results.AddRange(SearchComments(project, searchLower));
+            results.AddRange(SearchComments(project, query));
         }
 
         // Search in instructions
         if (kind == null || kind.Equals("instruction", StringComparison.OrdinalIgnoreCase))
         {
-            results.AddRange(SearchInstructions(project, searchLower));
+            results.AddRange(SearchInstructions(project, query));
         }
 
         return results;
@@ -48,9 +50,9 @@ public class SearchService
         // Search global tags
         foreach (var tag in project.Tags)
         {
-            if (tag.Name.ToLower().Contains(searchText) ||
-                (tag.Description?.ToLower().Contains(searchText) ?? false) ||
-                tag.DataType.ToLower().Contains(searchText))
+            if (tag.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                (tag.Description?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                tag.DataType.Contains(searchText, StringComparison.OrdinalIgnoreCase))
             {
                 results.Add(new SearchResult
                 {
@@ -67,9 +69,9 @@ public class SearchService
         {
             foreach (var tag in program.LocalTags)
             {
-                if (tag.Name.ToLower().Contains(searchText) ||
-                    (tag.Description?.ToLower().Contains(searchText) ?? false) ||
-                    tag.DataType.ToLower().Contains(searchText))
+                if (tag.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                    (tag.Description?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    tag.DataType.Contains(searchText, StringComparison.OrdinalIgnoreCase))
                 {
                     results.Add(new SearchResult
                     {
@@ -92,7 +94,7 @@ public class SearchService
         // Search in program descriptions
         foreach (var program in project.Programs)
         {
-            if (program.Description?.ToLower().Contains(searchText) ?? false)
+            if (program.Description?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false)
             {
                 results.Add(new SearchResult
                 {
@@ -106,7 +108,7 @@ public class SearchService
             // Search in routine descriptions
             foreach (var routine in program.Routines)
             {
-                if (routine.Description?.ToLower().Contains(searchText) ?? false)
+                if (routine.Description?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false)
                 {
                     results.Add(new SearchResult
                     {
@@ -120,7 +122,7 @@ public class SearchService
                 // Search in rung comments
                 foreach (var rung in routine.Rungs)
                 {
-                    if (rung.Comment?.ToLower().Contains(searchText) ?? false)
+                    if (rung.Comment?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false)
                     {
                         results.Add(new SearchResult
                         {
@@ -137,7 +139,7 @@ public class SearchService
         // Search in block comments
         foreach (var block in project.Blocks)
         {
-            if (block.Title?.ToLower().Contains(searchText) ?? false)
+            if (block.Title?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false)
             {
                 results.Add(new SearchResult
                 {
@@ -148,7 +150,7 @@ public class SearchService
                 });
             }
 
-            if (block.Comment?.ToLower().Contains(searchText) ?? false)
+            if (block.Comment?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false)
             {
                 results.Add(new SearchResult
                 {
@@ -173,23 +175,14 @@ public class SearchService
             {
                 foreach (var rung in routine.Rungs)
                 {
-                    // Search in rung text
-                    if (rung.Text?.ToLower().Contains(searchText) ?? false)
-                    {
-                        results.Add(new SearchResult
-                        {
-                            Type = "Instruction",
-                            Name = $"Rung {rung.Number}",
-                            Location = $"Routine: {routine.Name}, Program: {program.Name}",
-                            Context = TruncateText(rung.Text, 100)
-                        });
-                    }
-
-                    // Search in individual instructions
+                    // Prefer precise per-instruction hits; fall back to a whole-rung hit
+                    // only when the text matches but no parsed instruction does, so a
+                    // single match isn't reported twice.
+                    var matchedInstruction = false;
                     foreach (var instruction in rung.Instructions)
                     {
-                        if (instruction.Mnemonic.ToLower().Contains(searchText) ||
-                            instruction.Operands.Any(op => op.ToLower().Contains(searchText)))
+                        if (instruction.Mnemonic.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                            instruction.Operands.Any(op => op.Contains(searchText, StringComparison.OrdinalIgnoreCase)))
                         {
                             var operandList = string.Join(", ", instruction.Operands);
                             results.Add(new SearchResult
@@ -199,7 +192,19 @@ public class SearchService
                                 Location = $"Rung {rung.Number}, Routine: {routine.Name}, Program: {program.Name}",
                                 Context = operandList
                             });
+                            matchedInstruction = true;
                         }
+                    }
+
+                    if (!matchedInstruction && (rung.Text?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false))
+                    {
+                        results.Add(new SearchResult
+                        {
+                            Type = "Instruction",
+                            Name = $"Rung {rung.Number}",
+                            Location = $"Routine: {routine.Name}, Program: {program.Name}",
+                            Context = TruncateText(rung.Text, 100)
+                        });
                     }
                 }
             }

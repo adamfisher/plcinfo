@@ -51,6 +51,14 @@ public static class HelpFormatter
 
     public static int DisplayHelp<T>(ParserResult<T> result, IEnumerable<Error> errors)
     {
+        var errorList = errors.ToList();
+
+        // No verb (or an unknown one) was given, so list the verbs rather than
+        // the options of a single verb.
+        var showVerbs = errorList.Any(e =>
+            e is NoVerbSelectedError or BadVerbSelectedError ||
+            e is HelpVerbRequestedError { Matched: false });
+
         var helpText = HelpText.AutoBuild(result, h =>
         {
             h.AdditionalNewLineAfterOption = false;
@@ -69,7 +77,7 @@ public static class HelpFormatter
                 "Usage:",
                 "  plcinfo <command> [options]",
                 "",
-                "Commands:"
+                showVerbs ? "Commands:" : "Options:"
             ]);
             h.AddPostOptionsLines([
                 "",
@@ -86,15 +94,19 @@ public static class HelpFormatter
                 "  plcinfo <command> --help"
             ]);
             return h;
-        }, e => e);
+        }, e => e, verbsIndex: showVerbs);
+
+        // Explicitly requested help is normal output; usage errors go to stderr.
+        var helpRequested = errorList.Any(e =>
+            e is HelpRequestedError or HelpVerbRequestedError or VersionRequestedError);
+
+        if (helpRequested)
+        {
+            Console.WriteLine(helpText);
+            return 0;
+        }
 
         Console.Error.WriteLine(helpText);
-
-        // Return error code based on error type
-        var errorList = errors.ToList();
-        if (errorList.Any(e => e is HelpRequestedError || e is VersionRequestedError))
-            return 0;
-
         return 1;
     }
 }

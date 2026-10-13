@@ -12,6 +12,8 @@ public class YamlOutputFormatter : IOutputFormatter
     private static readonly ISerializer Serializer = new SerializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull)
+        // Quote strings like "true", "null" or "1.0" so they stay strings on re-read.
+        .WithQuotingNecessaryStrings()
         .Build();
 
     /// <inheritdoc/>
@@ -156,7 +158,7 @@ public class YamlOutputFormatter : IOutputFormatter
             }
         };
 
-        var result = new { ioModules = ioData.Modules };
+        var result = new { ioModules = ioData.Modules, ioTagSummary = ioData.IoTagSummary };
         return Serializer.Serialize(result);
     }
 

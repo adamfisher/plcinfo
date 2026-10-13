@@ -39,7 +39,8 @@ jobs:
         run: dotnet restore
 
       - name: Build
-        run: dotnet build --no-restore --configuration Release
+        # Warnings are errors so the build stays warning-free.
+        run: dotnet build --no-restore --configuration Release -warnaserror
 
       - name: Test
         run: >

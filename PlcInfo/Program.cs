@@ -9,8 +9,38 @@ namespace PlcInfo;
 /// </summary>
 class Program
 {
+    /// <summary>
+    /// Parses command-line arguments into one of the command verbs.
+    /// </summary>
+    internal static ParserResult<object> ParseArguments(string[] args)
+    {
+        var parser = new Parser(config =>
+        {
+            config.HelpWriter = null; // Disable automatic help so we can customize it
+            config.EnableDashDash = true;
+            // Accept "--format json" as documented, not only "--format Json".
+            config.CaseInsensitiveEnumValues = true;
+        });
+
+        return parser.ParseArguments<
+            SummaryCommand,
+            StructureCommand,
+            TagsCommand,
+            IoCommand,
+            MetricsCommand,
+            SearchCommand,
+            DiffCommand,
+            ExportCommand
+        >(args);
+    }
+
     static async Task<int> Main(string[] args)
     {
+        // Output is consumed by scripts and diffed in CI, so numbers and dates must
+        // not change with the machine's locale (e.g. "12,5" under de-DE).
+        System.Globalization.CultureInfo.DefaultThreadCurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
+        System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
+
         // Handle --version flag to show full help
         if (args.Length == 1 && (args[0] == "--version" || args[0] == "-v"))
         {
@@ -32,22 +62,7 @@ class Program
         var parserRegistry = new PlcParserRegistry(parsers);
 
         // Parse arguments and execute the appropriate command
-        var parser = new Parser(config =>
-        {
-            config.HelpWriter = null; // Disable automatic help so we can customize it
-            config.EnableDashDash = true;
-        });
-
-        var parserResult = parser.ParseArguments<
-            SummaryCommand,
-            StructureCommand,
-            TagsCommand,
-            IoCommand,
-            MetricsCommand,
-            SearchCommand,
-            DiffCommand,
-            ExportCommand
-        >(args);
+        var parserResult = ParseArguments(args);
 
         return await parserResult.MapResult(
             async (SummaryCommand cmd) => await cmd.Execute(parserRegistry),

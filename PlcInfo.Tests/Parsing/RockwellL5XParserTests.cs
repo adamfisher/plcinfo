@@ -158,7 +158,7 @@ public class RockwellL5XParserTests : IDisposable
 
         // Assert
         await action.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("Invalid L5X file: no root element");
+            .WithMessage("Invalid L5X file:*");
     }
 
     [Fact]
@@ -174,7 +174,7 @@ public class RockwellL5XParserTests : IDisposable
 
         // Assert
         await action.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("Invalid L5X file: no root element");
+            .WithMessage("Invalid L5X file:*");
     }
 
     [Fact]

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO.Compression;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -10,6 +11,14 @@ namespace PlcInfo.Parsing;
 /// </summary>
 public class SiemensStep7Parser : IPlcProjectParser
 {
+    static SiemensStep7Parser()
+    {
+        // Step 7 Classic files are Windows-1252. .NET (Core) only ships UTF/ASCII/Latin-1
+        // by default; without this, GetEncoding(1252) throws and the swallowing catch
+        // blocks below silently produced a project with no blocks or symbols.
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+    }
+
     /// <inheritdoc/>
     public bool CanParse(string filePath)
     {
@@ -133,22 +142,19 @@ public class SiemensStep7Parser : IPlcProjectParser
         var awlFiles = Directory.GetFiles(blocksPath, "*.awl", SearchOption.AllDirectories);
         foreach (var awlFile in awlFiles)
         {
-            var blockInfo = await ParseAwlFile(awlFile, cancellationToken);
-            if (blockInfo != null)
-            {
-                blocks.Add(blockInfo);
-            }
+            blocks.AddRange(await ParseAwlFile(awlFile, cancellationToken));
         }
 
         // Look for block info in subfolders
         var subblkPath = Path.Combine(blocksPath, "SUBBLK");
+        var knownBlockNames = blocks.Select(b => b.Name).ToHashSet();
         if (Directory.Exists(subblkPath))
         {
             var subblkFiles = Directory.GetFiles(subblkPath, "*.*", SearchOption.AllDirectories);
             foreach (var file in subblkFiles)
             {
                 var blockInfo = ParseBlockFromFilename(Path.GetFileName(file));
-                if (blockInfo != null && !blocks.Any(b => b.Name == blockInfo.Name))
+                if (blockInfo != null && knownBlockNames.Add(blockInfo.Name))
                 {
                     blocks.Add(blockInfo);
                 }
@@ -172,8 +178,10 @@ public class SiemensStep7Parser : IPlcProjectParser
                 return ParseBlockFromFilename(fileName);
             }
 
-            var blockType = match.Groups[1].Value.ToUpper();
-            var blockNumber = int.Parse(match.Groups[2].Value);
+            var blockType = match.Groups[1].Value.ToUpperInvariant();
+            // A malformed name (e.g. FB99999999999) must not abort the whole parse.
+            if (!int.TryParse(match.Groups[2].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var blockNumber))
+                return null;
 
             return new BlockInfo
             {
@@ -194,93 +202,109 @@ public class SiemensStep7Parser : IPlcProjectParser
         }
     }
 
-    private async Task<BlockInfo?> ParseAwlFile(string filePath, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<BlockInfo>> ParseAwlFile(string filePath, CancellationToken cancellationToken)
     {
         try
         {
             var content = await File.ReadAllTextAsync(filePath, Encoding.GetEncoding(1252), cancellationToken);
-            var lines = content.Split('\n');
+            return ParseAwlSource(content, Path.GetFileName(filePath));
+        }
+        catch (IOException)
+        {
+            return Array.Empty<BlockInfo>();
+        }
+    }
 
-            string? blockType = null;
-            int? blockNumber = null;
-            string? title = null;
-            int networkCount = 0;
-            string language = "STL";
+    private static readonly Regex AwlBlockHeader = new(
+        @"^(?<kw>ORGANIZATION_BLOCK|FUNCTION_BLOCK|FUNCTION|DATA_BLOCK)\s+(?:(?<type>OB|FB|FC|DB)\s*(?<num>\d{1,9})|""(?<sym>[^""]+)"")",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
-            foreach (var line in lines)
+    private static readonly Regex AwlBlockEnd = new(
+        @"^END_(ORGANIZATION_BLOCK|FUNCTION_BLOCK|FUNCTION|DATA_BLOCK)\b",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    /// <summary>
+    /// Parses Step 7 AWL/STL source. Headers may be absolute ("FUNCTION_BLOCK FB 10")
+    /// or symbolic ("FUNCTION_BLOCK \"MOTOR v4.3\"", as Step 7 exports them). A file
+    /// can hold several blocks; each ends at its END_* keyword. The block title is the
+    /// TITLE before the first NETWORK; later TITLE lines belong to networks.
+    /// </summary>
+    internal static IReadOnlyList<BlockInfo> ParseAwlSource(string content, string fileName)
+    {
+        var blocks = new List<BlockInfo>();
+        BlockInfo? current = null;
+        int startOffset = 0;
+        int offset = 0;
+
+        foreach (var rawLine in content.Split('\n'))
+        {
+            var lineStart = offset;
+            offset += rawLine.Length + 1;
+            var trimmed = rawLine.Trim();
+
+            var header = AwlBlockHeader.Match(trimmed);
+            if (header.Success)
             {
-                var trimmed = line.Trim();
+                var keyword = header.Groups["kw"].Value.ToUpperInvariant();
+                var type = keyword switch
+                {
+                    "ORGANIZATION_BLOCK" => "OB",
+                    "FUNCTION_BLOCK" => "FB",
+                    "FUNCTION" => "FC",
+                    _ => "DB"
+                };
 
-                // Parse block header
-                if (trimmed.StartsWith("ORGANIZATION_BLOCK", StringComparison.OrdinalIgnoreCase))
-                {
-                    blockType = "OB";
-                    var match = Regex.Match(trimmed, @"OB\s*(\d+)");
-                    if (match.Success)
-                        blockNumber = int.Parse(match.Groups[1].Value);
-                }
-                else if (trimmed.StartsWith("FUNCTION_BLOCK", StringComparison.OrdinalIgnoreCase))
-                {
-                    blockType = "FB";
-                    var match = Regex.Match(trimmed, @"FB\s*(\d+)");
-                    if (match.Success)
-                        blockNumber = int.Parse(match.Groups[1].Value);
-                }
-                else if (trimmed.StartsWith("FUNCTION", StringComparison.OrdinalIgnoreCase) && !trimmed.Contains("FUNCTION_BLOCK"))
-                {
-                    blockType = "FC";
-                    var match = Regex.Match(trimmed, @"FC\s*(\d+)");
-                    if (match.Success)
-                        blockNumber = int.Parse(match.Groups[1].Value);
-                }
-                else if (trimmed.StartsWith("DATA_BLOCK", StringComparison.OrdinalIgnoreCase))
-                {
-                    blockType = "DB";
-                    var match = Regex.Match(trimmed, @"DB\s*(\d+)");
-                    if (match.Success)
-                        blockNumber = int.Parse(match.Groups[1].Value);
-                }
+                var symbol = header.Groups["sym"].Success ? header.Groups["sym"].Value : null;
+                int.TryParse(header.Groups["num"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var number);
 
-                // Parse title
-                if (trimmed.StartsWith("TITLE", StringComparison.OrdinalIgnoreCase))
+                current = new BlockInfo
                 {
-                    var titleMatch = Regex.Match(trimmed, @"TITLE\s*=\s*(.+)");
-                    if (titleMatch.Success)
-                        title = titleMatch.Groups[1].Value.Trim('"', ' ');
-                }
-
-                // Count networks
-                if (trimmed.StartsWith("NETWORK", StringComparison.OrdinalIgnoreCase))
-                {
-                    networkCount++;
-                }
-            }
-
-            if (blockType != null && blockNumber.HasValue)
-            {
-                return new BlockInfo
-                {
-                    Name = $"{blockType}{blockNumber}",
-                    Number = blockNumber.Value,
-                    Type = blockType,
-                    Language = language,
-                    Title = title,
-                    NetworkCount = networkCount,
-                    SizeBytes = content.Length,
+                    Name = symbol ?? $"{type}{number}",
+                    Number = number,
+                    Type = type,
+                    Language = "STL",
                     Properties = new Dictionary<string, string>
                     {
-                        ["FileName"] = Path.GetFileName(filePath),
+                        ["FileName"] = fileName,
                         ["SourceType"] = "AWL"
                     }
                 };
+                if (symbol != null)
+                    current.Properties["Symbol"] = symbol;
+                startOffset = lineStart;
+                continue;
+            }
+
+            if (current == null)
+                continue;
+
+            if (trimmed.StartsWith("NETWORK", StringComparison.OrdinalIgnoreCase))
+            {
+                current.NetworkCount++;
+            }
+            else if (current.NetworkCount == 0 && current.Title == null &&
+                     trimmed.StartsWith("TITLE", StringComparison.OrdinalIgnoreCase))
+            {
+                var titleMatch = Regex.Match(trimmed, @"^TITLE\s*=\s*(.*)$", RegexOptions.IgnoreCase);
+                if (titleMatch.Success)
+                    current.Title = titleMatch.Groups[1].Value.Trim('"', ' ', '\r');
+            }
+            else if (AwlBlockEnd.IsMatch(trimmed))
+            {
+                current.SizeBytes = Encoding.UTF8.GetByteCount(content.AsSpan(startOffset, Math.Min(offset, content.Length) - startOffset));
+                blocks.Add(current);
+                current = null;
             }
         }
-        catch
+
+        // Tolerate a missing END_* at end of file.
+        if (current != null)
         {
-            // Ignore parse errors
+            current.SizeBytes = Encoding.UTF8.GetByteCount(content.AsSpan(startOffset));
+            blocks.Add(current);
         }
 
-        return null;
+        return blocks;
     }
 
     private BlockInfo? ParseBlockFromFilename(string fileName)
@@ -288,8 +312,10 @@ public class SiemensStep7Parser : IPlcProjectParser
         var match = Regex.Match(fileName, @"(OB|FB|FC|DB|SDB|SFC|SFB|UDT)(\d+)", RegexOptions.IgnoreCase);
         if (match.Success)
         {
-            var blockType = match.Groups[1].Value.ToUpper();
-            var blockNumber = int.Parse(match.Groups[2].Value);
+            var blockType = match.Groups[1].Value.ToUpperInvariant();
+            // A malformed name (e.g. FB99999999999) must not abort the whole parse.
+            if (!int.TryParse(match.Groups[2].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var blockNumber))
+                return null;
 
             return new BlockInfo
             {
@@ -532,7 +558,7 @@ public class SiemensStep7Parser : IPlcProjectParser
                 var channelMatch = Regex.Match(hw.Key, @"(\d+)(?:DI|DO|AI|AO)");
                 if (channelMatch.Success)
                 {
-                    module.ChannelCount = int.Parse(channelMatch.Groups[1].Value);
+                    module.ChannelCount = int.TryParse(channelMatch.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var channels) ? channels : 0;
                 }
 
                 modules.Add(module);

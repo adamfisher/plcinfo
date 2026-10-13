@@ -13,6 +13,9 @@ public class JsonOutputFormatter : IOutputFormatter
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        // Keep non-ASCII text (umlauts, °, CJK) and '<', '&' readable; this is
+        // CLI output, not HTML.
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
     };
 
