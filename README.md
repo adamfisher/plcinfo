@@ -41,7 +41,6 @@ PLCInfo provides a unified interface to read and analyze PLC project files from 
   - Ladder networks are written as canonical text for diffs, e.g. `XIC(a) [XIC(b) , XIO(c)] OTE(d)`
     (contacts `XIC`/`XIO`/`XICP`/`XICN`, coils `OTE`/`OTN`/`OTL`/`OTU`); FBD as assignments,
     e.g. `out := ADD(IN1 := x, IN2 := 1)`.
-- **Beckhoff TwinCAT** project files
 - **Beckhoff TwinCAT 3**
   - `.tsproj` (system manager project): tasks, the I/O tree (EtherCAT devices and nested boxes) with
     PLC variable links, and every referenced PLC project (via `PrjFilePath` or an `_Config/PLC/*.xti` file)
