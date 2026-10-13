@@ -23,8 +23,15 @@ PLCInfo provides a unified interface to read and analyze PLC project files from 
     Access "None" are not stored in the ACD's tag index and are left out. Results carry
     `ParseStatus: Partial` and a warning. For complete content, export to L5X from Studio 5000.
 - **Siemens**
-  - `.s7p` (Step 7 Project archives)
-  - TIA Portal project files
+  - TIA Portal Openness exports (SimaticML `.xml`): a single exported block, PLC data type or
+    tag table, or a whole export folder / Version Control Interface workspace (tested with
+    V18, V20 and V21 exports). LAD/FBD networks are rendered as boolean power-flow
+    text (e.g. `Coil(#Run) := (#Start OR #Run) AND NOT #Stop`), SCL is rebuilt from its tokens,
+    STL as statements, and GRAPH as steps, transitions and connections.
+  - Step 7 / TIA "Generate source from blocks" files: STL `.awl` and SCL `.scl`
+  - Step 7 Classic project folders and `.s7p` archives (block list only)
+  - TIA Portal project files (`.apXX`) and archives (`.zapXX`) are **not** readable: their format is
+    proprietary and undocumented. plcinfo recognizes them and explains how to export SimaticML instead.
 - **CODESYS** project files
 - **Beckhoff TwinCAT 3**
   - `.tsproj` (system manager project): tasks, the I/O tree (EtherCAT devices and nested boxes) with
@@ -432,8 +439,11 @@ plcinfo structure RockwellProject.ACD
 # Siemens Step 7 project
 plcinfo tags SiemensProject.s7p --format json
 
-# TIA Portal project
-plcinfo metrics TIAProject.ap16 --format yaml
+# TIA Portal Openness export folder (blocks, PLC data types, tag tables)
+plcinfo metrics ./PLC_1 --format yaml
+
+# Step 7 STL source
+plcinfo structure MOTOR.awl
 ```
 
 ## Output Formats

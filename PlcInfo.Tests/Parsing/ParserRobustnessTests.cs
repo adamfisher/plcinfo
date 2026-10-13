@@ -127,25 +127,6 @@ END_VAR", "FB");
     // ---- Siemens ----
 
     [Fact]
-    public void TiaPortal_TagScope_IgnoresRandomTempDirectoryName()
-    {
-        // GUID hex digits in the temp extraction folder used to decide the scope.
-        var path = Path.Combine(Path.GetTempPath(), "tia_3fb0c1fc-0000-0000-0000-000000000000", "TagTables", "Motors.xml");
-
-        SiemensTiaPortalParser.DetermineTagScope(path).Should().Be("Local");
-    }
-
-    [Theory]
-    [InlineData("PlcTagTable_Main.xml", "Global")]
-    [InlineData("FB10_Interface.xml", "FB")]
-    [InlineData("My_FC.xml", "FC")]
-    [InlineData("Buffer.xml", "Local")]
-    public void TiaPortal_TagScope_FromFileName(string fileName, string expected)
-    {
-        SiemensTiaPortalParser.DetermineTagScope(Path.Combine("TagTables", fileName)).Should().Be(expected);
-    }
-
-    [Fact]
     public void Step7_AwlWithSymbolicHeader_ParsesBlockWithHeaderTitle()
     {
         // Header style as exported by Step 7: a quoted symbol instead of "FB 10".

@@ -1,0 +1,1447 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Document>
+  <Engineering version="V18" />
+  <SW.Blocks.FC ID="0">
+    <AttributeList>
+      <AutoNumber>true</AutoNumber>
+      <HeaderAuthor />
+      <HeaderFamily />
+      <HeaderName />
+      <HeaderVersion>0.1</HeaderVersion>
+      <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+  <Section Name="Input" />
+  <Section Name="Output" />
+  <Section Name="InOut" />
+  <Section Name="Temp" />
+  <Section Name="Constant" />
+  <Section Name="Return">
+    <Member Name="Ret_Val" Datatype="Void" Accessibility="Public" />
+  </Section>
+</Sections></Interface>
+      <MemoryLayout>Optimized</MemoryLayout>
+      <Name>FC_DI</Name>
+      <Namespace />
+      <Number>1</Number>
+      <ProgrammingLanguage>STL</ProgrammingLanguage>
+      <UDABlockProperties />
+      <UDAEnableTagReadback>false</UDAEnableTagReadback>
+    </AttributeList>
+    <ObjectList>
+      <MultilingualText ID="1" CompositionName="Comment">
+        <ObjectList>
+          <MultilingualTextItem ID="2" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+      <SW.Blocks.CompileUnit ID="3" CompositionName="CompileUnits">
+        <AttributeList>
+          <NetworkSource><StatementList xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StatementList/v4">
+  <StlStatement UId="21">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_SelStart" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="23">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_SelStart" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="24">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="25">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_SelStop" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="26">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_SelStop" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="27">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="28">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_BtnEmergency" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="29">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_BtnEmergency" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="30">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="31">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_BtnReset" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="32">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_BtnReset" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="33">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="34">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_Capacitive" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="35">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_Capacitive" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="36">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="37">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_5" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="38">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_5" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="39">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="40">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_6" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="41">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_6" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="42">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="43">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_0" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="44">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_PhCell_0" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="45">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="46">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_1" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="47">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_PhCell_1" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="48">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="49">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_2" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="50">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_PhCell_2" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="51">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="52">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_3" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="53">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_PhCell_3" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="54">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="55">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_4" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="56">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_PhCell_4" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="159">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="160">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_5" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="162">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_PhCell_5" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="165">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="166">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_6" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="168">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_PhCell_6" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="164">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="58">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_7" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="59">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_PhCell_7" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="60">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="61">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_8" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="62">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_PhCell_8" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="249">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="201">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_Picker" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="203">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_Picker" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="205">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="206">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_17" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="208">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_17" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="210">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="211">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_17" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="213">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_17" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="215">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="216">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_18" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="218">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_18" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="220">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="221">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_19" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="223">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_19" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="225">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="226">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_20" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="228">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_20" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="230">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="231">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_21" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="233">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_21" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="250">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="235">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_22" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="237">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_22" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="251">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="239">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_23" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="241">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_23" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="271">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="244">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_24" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="246">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_24" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="252">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="253">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_25" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="255">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_26" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="257">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="258">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_27" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="260">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_27" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="272">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="262">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_28" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="264">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_28" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="266">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="267">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_29" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="269">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_29" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="282">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="273">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_30" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="275">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_30" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="277">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="278">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_31" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="280">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="in_31" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="243">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="248">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="200">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="63">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="64">
+    <LineComment Inserted="false">
+      <Text>Flacos</Text>
+    </LineComment>
+    <StlToken Text="COMMENT" />
+  </StlStatement>
+  <StlStatement UId="67">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="68">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_BtnReset" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="69">
+    <StlToken Text="Rise" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="Data" />
+        <Component Name="flanks" AccessModifier="Array">
+          <Access Scope="LiteralConstant">
+            <Constant>
+              <ConstantType>DInt</ConstantType>
+              <ConstantValue>0</ConstantValue>
+            </Constant>
+          </Access>
+        </Component>
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="70">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="BtnReset_p" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="71">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="72">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_0" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="73">
+    <StlToken Text="Rise" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="Data" />
+        <Component Name="flanks" AccessModifier="Array">
+          <Access Scope="LiteralConstant">
+            <Constant>
+              <ConstantType>DInt</ConstantType>
+              <ConstantValue>1</ConstantValue>
+            </Constant>
+          </Access>
+        </Component>
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="74">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="PhCell_0_p" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="75">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="76">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_0" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="77">
+    <StlToken Text="Fall" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="Data" />
+        <Component Name="flanks" AccessModifier="Array">
+          <Access Scope="LiteralConstant">
+            <Constant>
+              <ConstantType>DInt</ConstantType>
+              <ConstantValue>2</ConstantValue>
+            </Constant>
+          </Access>
+        </Component>
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="78">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="PhCell_0_n" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="85">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="86">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_1" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="88">
+    <StlToken Text="Rise" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="Data" />
+        <Component Name="flanks" AccessModifier="Array">
+          <Access Scope="LiteralConstant">
+            <Constant>
+              <ConstantType>DInt</ConstantType>
+              <ConstantValue>3</ConstantValue>
+            </Constant>
+          </Access>
+        </Component>
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="90">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="PhCell_1_p" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="92">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="93">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_1" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="95">
+    <StlToken Text="Fall" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="Data" />
+        <Component Name="flanks" AccessModifier="Array">
+          <Access Scope="LiteralConstant">
+            <Constant>
+              <ConstantType>DInt</ConstantType>
+              <ConstantValue>4</ConstantValue>
+            </Constant>
+          </Access>
+        </Component>
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="97">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="PhCell_1_n" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="100">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="129">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_2" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="136">
+    <StlToken Text="Rise" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="Data" />
+        <Component Name="flanks" AccessModifier="Array">
+          <Access Scope="LiteralConstant">
+            <Constant>
+              <ConstantType>DInt</ConstantType>
+              <ConstantValue>5</ConstantValue>
+            </Constant>
+          </Access>
+        </Component>
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="138">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="PhCell_2_p" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="140">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="141">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_2" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="143">
+    <StlToken Text="Fall" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="Data" />
+        <Component Name="flanks" AccessModifier="Array">
+          <Access Scope="LiteralConstant">
+            <Constant>
+              <ConstantType>DInt</ConstantType>
+              <ConstantValue>6</ConstantValue>
+            </Constant>
+          </Access>
+        </Component>
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="145">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="PhCell_2_n" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="147">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="148">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_3" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="150">
+    <StlToken Text="Rise" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="Data" />
+        <Component Name="flanks" AccessModifier="Array">
+          <Access Scope="LiteralConstant">
+            <Constant>
+              <ConstantType>DInt</ConstantType>
+              <ConstantValue>7</ConstantValue>
+            </Constant>
+          </Access>
+        </Component>
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="152">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="PhCell_3_p" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="154">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="155">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_3" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="157">
+    <StlToken Text="Fall" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="Data" />
+        <Component Name="flanks" AccessModifier="Array">
+          <Access Scope="LiteralConstant">
+            <Constant>
+              <ConstantType>DInt</ConstantType>
+              <ConstantValue>8</ConstantValue>
+            </Constant>
+          </Access>
+        </Component>
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="170">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="PhCell_3_n" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="173">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="174">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_4" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="176">
+    <StlToken Text="Rise" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="Data" />
+        <Component Name="flanks" AccessModifier="Array">
+          <Access Scope="LiteralConstant">
+            <Constant>
+              <ConstantType>DInt</ConstantType>
+              <ConstantValue>9</ConstantValue>
+            </Constant>
+          </Access>
+        </Component>
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="178">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="PhCell_4_p" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="180">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="181">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_4" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="183">
+    <StlToken Text="Fall" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="Data" />
+        <Component Name="flanks" AccessModifier="Array">
+          <Access Scope="LiteralConstant">
+            <Constant>
+              <ConstantType>DInt</ConstantType>
+              <ConstantValue>10</ConstantValue>
+            </Constant>
+          </Access>
+        </Component>
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="185">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="PhCell_4_n" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="187">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="188">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_5" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="190">
+    <StlToken Text="Rise" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="Data" />
+        <Component Name="flanks" AccessModifier="Array">
+          <Access Scope="LiteralConstant">
+            <Constant>
+              <ConstantType>DInt</ConstantType>
+              <ConstantValue>11</ConstantValue>
+            </Constant>
+          </Access>
+        </Component>
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="192">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="PhCell_5_p" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="194">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="195">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_5" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="197">
+    <StlToken Text="Fall" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="Data" />
+        <Component Name="flanks" AccessModifier="Array">
+          <Access Scope="LiteralConstant">
+            <Constant>
+              <ConstantType>DInt</ConstantType>
+              <ConstantValue>12</ConstantValue>
+            </Constant>
+          </Access>
+        </Component>
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="199">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="PhCell_5_n" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="288">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="289">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_6" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="291">
+    <StlToken Text="Rise" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="Data" />
+        <Component Name="flanks" AccessModifier="Array">
+          <Access Scope="LiteralConstant">
+            <Constant>
+              <ConstantType>DInt</ConstantType>
+              <ConstantValue>13</ConstantValue>
+            </Constant>
+          </Access>
+        </Component>
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="293">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="PhCell_6_p" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="295">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="296">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_6" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="298">
+    <StlToken Text="Fall" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="Data" />
+        <Component Name="flanks" AccessModifier="Array">
+          <Access Scope="LiteralConstant">
+            <Constant>
+              <ConstantType>DInt</ConstantType>
+              <ConstantValue>14</ConstantValue>
+            </Constant>
+          </Access>
+        </Component>
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="300">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="PhCell_6_n" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="303">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="304">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_7" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="306">
+    <StlToken Text="Rise" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="Data" />
+        <Component Name="flanks" AccessModifier="Array">
+          <Access Scope="LiteralConstant">
+            <Constant>
+              <ConstantType>DInt</ConstantType>
+              <ConstantValue>15</ConstantValue>
+            </Constant>
+          </Access>
+        </Component>
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="308">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="PhCell_7_p" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="310">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="311">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_7" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="313">
+    <StlToken Text="Fall" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="Data" />
+        <Component Name="flanks" AccessModifier="Array">
+          <Access Scope="LiteralConstant">
+            <Constant>
+              <ConstantType>DInt</ConstantType>
+              <ConstantValue>16</ConstantValue>
+            </Constant>
+          </Access>
+        </Component>
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="305">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="PhCell_7_n" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="316">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="317">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_8" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="319">
+    <StlToken Text="Rise" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="Data" />
+        <Component Name="flanks" AccessModifier="Array">
+          <Access Scope="LiteralConstant">
+            <Constant>
+              <ConstantType>DInt</ConstantType>
+              <ConstantValue>17</ConstantValue>
+            </Constant>
+          </Access>
+        </Component>
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="321">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="PhCell_8_p" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="323">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="324">
+    <StlToken Text="A" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="in_PhCell_8" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="326">
+    <StlToken Text="Fall" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="Data" />
+        <Component Name="flanks" AccessModifier="Array">
+          <Access Scope="LiteralConstant">
+            <Constant>
+              <ConstantType>DInt</ConstantType>
+              <ConstantValue>18</ConstantValue>
+            </Constant>
+          </Access>
+        </Component>
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="328">
+    <StlToken Text="Assign" />
+    <Access Scope="GlobalVariable">
+      <Symbol>
+        <Component Name="DB_DI" />
+        <Component Name="PhCell_8_n" />
+      </Symbol>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="315">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="302">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="287">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="146">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="84">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="79">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="80">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="66">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="22">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+</StatementList></NetworkSource>
+          <ProgrammingLanguage>STL</ProgrammingLanguage>
+        </AttributeList>
+        <ObjectList>
+          <MultilingualText ID="4" CompositionName="Comment">
+            <ObjectList>
+              <MultilingualTextItem ID="5" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+          <MultilingualText ID="6" CompositionName="Title">
+            <ObjectList>
+              <MultilingualTextItem ID="7" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+        </ObjectList>
+      </SW.Blocks.CompileUnit>
+      <MultilingualText ID="8" CompositionName="Title">
+        <ObjectList>
+          <MultilingualTextItem ID="9" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+    </ObjectList>
+  </SW.Blocks.FC>
+</Document>
