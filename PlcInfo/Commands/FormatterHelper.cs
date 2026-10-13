@@ -18,6 +18,7 @@ public static class FormatterHelper
             OutputFormat.Yaml => new YamlOutputFormatter(),
             OutputFormat.Md => new MarkdownOutputFormatter(),
             OutputFormat.Csv => new CsvOutputFormatter(),
+            OutputFormat.Html => new HtmlOutputFormatter(),
             _ => new TextOutputFormatter()
         };
     }

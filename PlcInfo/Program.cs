@@ -25,7 +25,8 @@ class Program
         typeof(XrefCommand),
         typeof(LintCommand),
         typeof(ExportCommand),
-        typeof(TextconvCommand)
+        typeof(TextconvCommand),
+        typeof(ReportCommand)
     };
 
     /// <summary>

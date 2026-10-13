@@ -121,6 +121,19 @@ public class CommandLineTests : IDisposable
         command.WritesOnly.Should().BeTrue();
     }
 
+    [Fact]
+    public async Task Report_DefaultsToHtml_AndHtmlIsRejectedForNonVisualCommands()
+    {
+        Parse<ReportCommand>("report", "project.L5X").Format.Should().Be(OutputFormat.Html);
+
+        var report = await Run(new ReportCommand { FilePath = "x.test" }, new StubParser());
+        report.ExitCode.Should().Be(ExitCodes.Success);
+        report.Stdout.Should().StartWith("<!doctype html>");
+
+        var tags = await Run(new TagsCommand { FilePath = "x.test", Format = OutputFormat.Html }, new StubParser());
+        tags.ExitCode.Should().Be(ExitCodes.Usage);
+    }
+
     // ---- help, version and usage errors ----
 
     [Fact]
