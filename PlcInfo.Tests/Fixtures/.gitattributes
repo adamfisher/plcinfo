@@ -1,0 +1,4 @@
+# ACD project files start with plain-text headers, so git would otherwise treat them as
+# text and could rewrite line endings, corrupting the binary container.
+*.ACD binary
+*.acd binary

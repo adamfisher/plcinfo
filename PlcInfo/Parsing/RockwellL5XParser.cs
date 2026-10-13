@@ -667,7 +667,7 @@ public class RockwellL5XParser : IPlcProjectParser
         return modules;
     }
 
-    private string DetermineModuleType(string catalogNumber)
+    internal static string DetermineModuleType(string catalogNumber)
     {
         if (string.IsNullOrEmpty(catalogNumber))
             return "Unknown";
