@@ -84,7 +84,10 @@ dotnet run --project PlcInfo -- [command] [options]
 ## Usage
 
 ```bash
-plcinfo <command> <file> [options]
+plcinfo <command> [options] <file>
+plcinfo --help              # list commands
+plcinfo <command> --help    # a command's options (-h also works)
+plcinfo --version
 ```
 
 ### Commands
@@ -169,16 +172,16 @@ Search for specific text within tags, comments, or instructions.
 
 ```bash
 # Search all content
-plcinfo search project.L5X --text "Conveyor"
+plcinfo search project.L5X "Conveyor"
 
 # Search only tags
-plcinfo search project.L5X --text "Motor" --kind tag
+plcinfo search project.L5X "Motor" --kind tag
 
 # Search only comments
-plcinfo search project.L5X --text "TODO" --kind comment
+plcinfo search project.L5X "TODO" --kind comment
 
 # Search only instructions
-plcinfo search project.L5X --text "TON" --kind instruction
+plcinfo search project.L5X "TON" --kind instruction
 ```
 
 #### `diff` - Compare Two Projects
@@ -204,23 +207,37 @@ Exit code is `0` if identical, `1` if differences are found, and `2` if a file c
 Convert project to a vendor-neutral JSON format for integration with other tools.
 
 ```bash
-# Export to stdout
+# Export JSON to stdout
 plcinfo export project.L5X
 
-# Export to file
+# Export to a file, or as YAML
 plcinfo export project.L5X --output project.json
+plcinfo export project.L5X --format yaml
 
 # Compact JSON (no indentation)
-plcinfo export project.L5X --output project.json --indent false
+plcinfo export project.L5X --compact
 ```
 
-### Global Options
+### Options for every command
 
-**`--format` / `-f`** - Output format
-- `text` - Human-readable text (default)
-- `json` - JSON format
-- `yaml` - YAML format
-- `md` - Markdown format
+| Option | Description |
+|---|---|
+| `-f`, `--format FORMAT` | Output format: `text` (default), `json`, `yaml`, `md`/`markdown`. `export` defaults to `json`. |
+| `-o`, `--output FILE` | Write the result to `FILE` instead of standard output. |
+| `-q`, `--quiet` | Don't print warnings (e.g. partially decoded files) on standard error. |
+| `--verbose` | Print extra diagnostics, including stack traces for errors. |
+| `-h`, `--help` | Show help. |
+
+Standard output carries only the command's result, so it can be piped or redirected safely. Warnings and errors go to standard error, prefixed with `plcinfo:`.
+
+### Exit status
+
+| Code | Meaning |
+|---|---|
+| `0` | Success |
+| `1` | Error (e.g. file not found or not parseable). For `diff`: the projects differ. |
+| `2` | Usage error (unknown command or option, bad option value). For `diff`: any error. |
+| `130` | Interrupted (Ctrl+C) |
 
 ## Quick Start Examples
 
@@ -244,10 +261,10 @@ plcinfo tags MyProject.L5X --scope controller
 plcinfo metrics MyProject.L5X --format md > metrics.md
 
 # Search for potential issues
-plcinfo search MyProject.L5X --text "TODO" --kind comment
+plcinfo search MyProject.L5X "TODO" --kind comment
 
 # Find all timer instructions
-plcinfo search MyProject.L5X --text "TON" --kind instruction
+plcinfo search MyProject.L5X "TON" --kind instruction
 ```
 
 ### Example 3: Version Control Integration

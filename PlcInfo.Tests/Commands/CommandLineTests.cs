@@ -1,6 +1,7 @@
 using CommandLine;
 using FluentAssertions;
 using PlcInfo.Commands;
+using PlcInfo.Models;
 using PlcInfo.Parsing;
 using Xunit.Categories;
 
@@ -8,88 +9,234 @@ namespace PlcInfo.Tests.Commands;
 
 [UnitTest]
 [Collection("Console")]
-public class CommandLineTests
+public class CommandLineTests : IDisposable
 {
+    private readonly string _tempDirectory;
+
+    public CommandLineTests()
+    {
+        _tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(_tempDirectory);
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_tempDirectory))
+            Directory.Delete(_tempDirectory, true);
+    }
+
+    // ---- argument parsing ----
+
     [Theory]
     [InlineData("json", OutputFormat.Json)]
     [InlineData("Json", OutputFormat.Json)]
     [InlineData("md", OutputFormat.Md)]
+    [InlineData("markdown", OutputFormat.Md)]
     [InlineData("YAML", OutputFormat.Yaml)]
-    public void FormatOption_IsCaseInsensitive(string value, OutputFormat expected)
+    public void FormatOption_IsCaseInsensitiveAndAcceptsAliases(string value, OutputFormat expected)
     {
-        // The README documents "--format json"; it used to be rejected.
-        var result = PlcInfo.Program.ParseArguments(new[] { "summary", "project.L5X", "--format", value });
-
-        result.Tag.Should().Be(ParserResultType.Parsed);
-        ((SummaryCommand)((Parsed<object>)result).Value).Format.Should().Be(expected);
-    }
-
-    [Theory]
-    [InlineData("false", false)]
-    [InlineData("true", true)]
-    public void ExportIndent_AcceptsExplicitValue(string value, bool expected)
-    {
-        var result = PlcInfo.Program.ParseArguments(new[] { "export", "project.L5X", "--indent", value });
-
-        result.Tag.Should().Be(ParserResultType.Parsed);
-        ((ExportCommand)((Parsed<object>)result).Value).Indent.Should().Be(expected);
+        Parse<SummaryCommand>("summary", "project.L5X", "--format", value).Format.Should().Be(expected);
     }
 
     [Fact]
-    public void Help_WithUnknownVerb_ListsAllCommands()
+    public void FormatOption_DefaultsToText()
     {
-        var result = PlcInfo.Program.ParseArguments(new[] { "bogus" });
-        var errors = ((NotParsed<object>)result).Errors;
+        Parse<SummaryCommand>("summary", "project.L5X").Format.Should().Be(OutputFormat.Text);
+    }
 
-        var (exitCode, stdout, stderr) = CaptureConsole(() => HelpFormatter.DisplayHelp(result, errors));
+    [Fact]
+    public void Export_DefaultsToJson()
+    {
+        Parse<ExportCommand>("export", "project.L5X").Format.Should().Be(OutputFormat.Json);
+    }
 
-        exitCode.Should().Be(1);
-        stdout.Should().BeEmpty();
-        foreach (var verb in new[] { "summary", "structure", "tags", "io", "metrics", "search", "diff", "export" })
+    [Fact]
+    public void Export_CompactFlag_AndLegacyIndentValue()
+    {
+        Parse<ExportCommand>("export", "project.L5X", "--compact").Compact.Should().BeTrue();
+        Parse<ExportCommand>("export", "project.L5X", "--indent", "false").Indent.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Search_QueryIsPositional_WithLegacyTextOption()
+    {
+        Parse<SearchCommand>("search", "project.L5X", "Motor").SearchText.Should().Be("Motor");
+        Parse<SearchCommand>("search", "project.L5X", "--text", "Motor").SearchText.Should().Be("Motor");
+    }
+
+    [Fact]
+    public void CommonOptions_AreAvailableOnEveryCommand()
+    {
+        foreach (var verb in new[] { "summary", "structure", "tags", "io", "metrics", "export" })
         {
-            stderr.Should().MatchRegex($@"(?m)^\s+{verb}\s");
+            var command = Parse<CommandBase>(verb, "project.L5X", "-o", "out.txt", "-q", "--verbose");
+            command.OutputPath.Should().Be("out.txt", verb);
+            command.Quiet.Should().BeTrue(verb);
+            command.Verbose.Should().BeTrue(verb);
         }
     }
 
     [Fact]
-    public void Help_ForVerb_ExitsZeroAndWritesToStdout()
+    public void ShortHelpFlag_IsHelp_ButNotAfterDashDash()
     {
-        var result = PlcInfo.Program.ParseArguments(new[] { "summary", "--help" });
-        var errors = ((NotParsed<object>)result).Errors;
+        PlcInfo.Program.NormalizeArguments(new[] { "summary", "-h" }).Should().Equal("summary", "--help");
+        PlcInfo.Program.NormalizeArguments(new[] { "summary", "--", "-h" }).Should().Equal("summary", "--", "-h");
+    }
 
-        var (exitCode, stdout, _) = CaptureConsole(() => HelpFormatter.DisplayHelp(result, errors));
+    // ---- help, version and usage errors ----
 
-        exitCode.Should().Be(0);
-        stdout.Should().Contain("--format");
+    [Fact]
+    public void Version_PrintsNameAndVersionOnly()
+    {
+        var (exitCode, stdout, _) = RunHelp("--version");
+
+        exitCode.Should().Be(ExitCodes.Success);
+        stdout.Trim().Should().MatchRegex(@"^plcinfo \d+\.\d+\.\d+\S*$");
     }
 
     [Fact]
-    public async Task Diff_UnreadableFile_ReturnsExitCode2()
+    public void Help_ForVerb_ExitsZeroOnStdoutWithUsageLine()
+    {
+        var (exitCode, stdout, _) = RunHelp("search", "-h");
+
+        exitCode.Should().Be(ExitCodes.Success);
+        stdout.Should().Contain("Usage: plcinfo search [options] FILE QUERY");
+        stdout.Should().Contain("--kind");
+    }
+
+    [Fact]
+    public void UnknownVerb_ListsAllCommandsOnStderr_ExitsWithUsageError()
+    {
+        var (exitCode, stdout, stderr) = RunHelp("bogus");
+
+        exitCode.Should().Be(ExitCodes.Usage);
+        stdout.Should().BeEmpty();
+        foreach (var verb in new[] { "summary", "structure", "tags", "io", "metrics", "search", "diff", "export" })
+            stderr.Should().MatchRegex($@"(?m)^\s+{verb}\s");
+    }
+
+    [Fact]
+    public void InvalidOptionValue_ExitsWithUsageError()
+    {
+        var (exitCode, _, stderr) = RunHelp("summary", "project.L5X", "--format", "pdf");
+
+        exitCode.Should().Be(ExitCodes.Usage);
+        stderr.Should().Contain("format");
+    }
+
+    // ---- execution ----
+
+    [Fact]
+    public async Task MissingFile_ExitsOneWithErrorOnStderrOnly()
+    {
+        var command = new SummaryCommand { FilePath = Path.Combine(_tempDirectory, "missing.L5X") };
+
+        var (exitCode, stdout, stderr) = await Run(command, new RockwellL5XParser());
+
+        exitCode.Should().Be(ExitCodes.Error);
+        stdout.Should().BeEmpty();
+        stderr.Should().StartWith("plcinfo: error: ");
+    }
+
+    [Fact]
+    public async Task Diff_UnreadableFile_ExitsTwo()
     {
         var command = new DiffCommand { File1 = "missing1.L5X", File2 = "missing2.L5X" };
-        var registry = new PlcParserRegistry(new IPlcProjectParser[] { new RockwellL5XParser() });
 
-        var (exitCode, _, _) = await CaptureConsoleAsync(() => command.Execute(registry));
+        var (exitCode, _, _) = await Run(command, new RockwellL5XParser());
 
         exitCode.Should().Be(2);
     }
 
     [Fact]
-    public async Task Search_UnknownKind_ReturnsErrorInsteadOfEmptyResults()
+    public async Task Search_UnknownKind_IsUsageError()
     {
-        var command = new SearchCommand { FilePath = "project.L5X", SearchText = "x", Kind = "tags" };
-        var registry = new PlcParserRegistry(new IPlcProjectParser[] { new RockwellL5XParser() });
+        var command = new SearchCommand { FilePath = "x.test", Query = "x", Kind = "bogus" };
 
-        var (exitCode, _, stderr) = await CaptureConsoleAsync(() => command.Execute(registry));
+        var (exitCode, _, stderr) = await Run(command, new StubParser());
 
-        exitCode.Should().Be(1);
-        stderr.Should().Contain("Unknown search kind 'tags'");
+        exitCode.Should().Be(ExitCodes.Usage);
+        stderr.Should().Contain("unknown --kind 'bogus'");
     }
 
-    private static (int, string, string) CaptureConsole(Func<int> action) =>
-        CaptureConsoleAsync(() => Task.FromResult(action())).GetAwaiter().GetResult();
+    [Fact]
+    public async Task Search_PluralKind_IsAccepted()
+    {
+        var command = new SearchCommand { FilePath = "x.test", Query = "x", Kind = "tags" };
 
-    private static async Task<(int, string, string)> CaptureConsoleAsync(Func<Task<int>> action)
+        var (exitCode, _, _) = await Run(command, new StubParser());
+
+        exitCode.Should().Be(ExitCodes.Success);
+    }
+
+    [Fact]
+    public async Task Export_TextFormat_IsUsageError()
+    {
+        var command = new ExportCommand { FilePath = "x.test", Format = OutputFormat.Text };
+
+        var (exitCode, _, _) = await Run(command, new StubParser());
+
+        exitCode.Should().Be(ExitCodes.Usage);
+    }
+
+    [Fact]
+    public async Task OutputOption_WritesFileAndNothingToStdout()
+    {
+        var outputPath = Path.Combine(_tempDirectory, "summary.json");
+        var command = new SummaryCommand { FilePath = "x.test", Format = OutputFormat.Json, OutputPath = outputPath };
+
+        var (exitCode, stdout, _) = await Run(command, new StubParser());
+
+        exitCode.Should().Be(ExitCodes.Success);
+        stdout.Should().BeEmpty();
+        File.ReadAllText(outputPath).Should().Contain("\"vendor\"");
+    }
+
+    [Fact]
+    public async Task ParserWarnings_GoToStderr_UnlessQuiet()
+    {
+        var loud = await Run(new SummaryCommand { FilePath = "x.test" }, new StubParser("Rung logic not decoded"));
+        var quiet = await Run(new SummaryCommand { FilePath = "x.test", Quiet = true }, new StubParser("Rung logic not decoded"));
+
+        loud.Stderr.Should().Contain("plcinfo: warning: x.test: Rung logic not decoded");
+        loud.Stdout.Should().NotContain("warning");
+        quiet.Stderr.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Cancellation_ExitsWith130()
+    {
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
+
+        var (exitCode, _, _) = await CaptureConsoleAsync(() =>
+            new SummaryCommand { FilePath = "x.test" }.Execute(Registry(new StubParser()), cancelled.Token));
+
+        exitCode.Should().Be(ExitCodes.Interrupted);
+    }
+
+    // ---- helpers ----
+
+    private static T Parse<T>(params string[] args) where T : class
+    {
+        var result = PlcInfo.Program.ParseArguments(args);
+        result.Tag.Should().Be(ParserResultType.Parsed, string.Join(" ", args));
+        return ((Parsed<object>)result).Value.Should().BeAssignableTo<T>().Subject;
+    }
+
+    private static (int ExitCode, string Stdout, string Stderr) RunHelp(params string[] args)
+    {
+        var result = PlcInfo.Program.ParseArguments(args);
+        var errors = ((NotParsed<object>)result).Errors;
+        return CaptureConsoleAsync(() => Task.FromResult(HelpFormatter.DisplayHelp(result, errors))).GetAwaiter().GetResult();
+    }
+
+    private static Task<(int ExitCode, string Stdout, string Stderr)> Run(CommandBase command, IPlcProjectParser parser) =>
+        CaptureConsoleAsync(() => command.Execute(Registry(parser)));
+
+    private static PlcParserRegistry Registry(IPlcProjectParser parser) => new(new[] { parser });
+
+    private static async Task<(int ExitCode, string Stdout, string Stderr)> CaptureConsoleAsync(Func<Task<int>> action)
     {
         var originalOut = Console.Out;
         var originalError = Console.Error;
@@ -106,6 +253,27 @@ public class CommandLineTests
         {
             Console.SetOut(originalOut);
             Console.SetError(originalError);
+        }
+    }
+
+    /// <summary>
+    /// Parses any "*.test" path into a tiny project, optionally with parser warnings.
+    /// </summary>
+    private sealed class StubParser : IPlcProjectParser
+    {
+        private readonly string? _warning;
+
+        public StubParser(string? warning = null) => _warning = warning;
+
+        public bool CanParse(string filePath) => filePath.EndsWith(".test", StringComparison.Ordinal);
+
+        public Task<PlcProject> ParseAsync(string filePath, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var project = new PlcProject { Vendor = "Test", Format = "Test", FilePath = filePath };
+            if (_warning != null)
+                project.Metadata["Warnings"] = _warning;
+            return Task.FromResult(project);
         }
     }
 }

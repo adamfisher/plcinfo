@@ -3,23 +3,13 @@ using PlcInfo.Parsing;
 
 namespace PlcInfo.Commands;
 
-[Verb("summary", HelpText = "Display project summary")]
+[Verb("summary", HelpText = "Show a project summary: controller, counts, languages.")]
 public class SummaryCommand : BaseFileCommand
 {
-    public async Task<int> Execute(IPlcParserRegistry parserRegistry)
+    protected override async Task<int> RunAsync(IPlcParserRegistry parserRegistry, CancellationToken cancellationToken)
     {
-        try
-        {
-            var parser = parserRegistry.ResolveForFile(FilePath);
-            var project = await parser.ParseAsync(FilePath);
-            var formatter = FormatterHelper.GetFormatter(Format);
-            Console.WriteLine(formatter.FormatSummary(project));
-            return 0;
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"Error: {ex.Message}");
-            return 1;
-        }
+        var project = await LoadProjectAsync(parserRegistry, FilePath, cancellationToken);
+        await WriteResultAsync(Formatter.FormatSummary(project), cancellationToken);
+        return ExitCodes.Success;
     }
 }
