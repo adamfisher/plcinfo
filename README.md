@@ -54,63 +54,50 @@ PLCInfo provides a unified interface to read and analyze PLC project files from 
 
 ## Features
 
-- **Project Summary** - Quick overview of controller, firmware, programs, routines, and tags
-- **Project Structure** - Hierarchical view of tasks, programs, and routines
-- **Tag Analysis** - List and filter tags by scope, type, or I/O usage
-- **I/O Configuration** - Display configured I/O modules and their details
-- **Code Metrics** - Calculate complexity metrics, instruction counts, and code statistics
-- **Search** - Find tags, instructions, or comments across the entire project
-- **Diff Comparison** - Compare two project versions to identify changes
-- **Export** - Convert projects to vendor-neutral JSON format
-- **Multiple Output Formats** - Text, JSON, YAML, and Markdown output options
+- **Logic diff** - Compare two versions down to individual rungs, Structured Text lines and networks, with instruction-level summaries such as `-OTE(Motor) +OTL(Motor)`.
+- **Ladder rendering** - Self-contained HTML reports, and visual before/after diffs that draw rungs as ladder diagrams.
+- **Git integration** - `textconv` makes `git diff`, `git log -p` and code review show logic changes instead of XML noise.
+- **Cross-reference** - See where every tag is read and written, and find who sets an output.
+- **Lint** - Find duplicate `OTE`s, missing `JSR` targets, unreachable routines, leftover `AFI`s, unused tags and more. Works as a CI gate.
+- **One model for every vendor** - Rockwell, Siemens, CODESYS/PLCopen and Beckhoff projects all summarize, search, diff and export the same way.
+- **Project inspection** - Summary, structure, tags (controller and program scope), I/O, data types, metrics and search.
+- **Many output formats** - Text, JSON, YAML, Markdown, CSV (for Excel) and HTML.
 
 ## Installation
 
-### Quick Start - Download Pre-built Executable
+### Download a pre-built binary
 
-The easiest way to get started is to download the latest pre-built executable from the [Releases](https://github.com/adamfisher/plcinfo/releases) page.
+Download the archive for your platform from the [latest release](https://github.com/adamfisher/plcinfo/releases/latest). The binaries are self-contained, so .NET doesn't need to be installed.
 
-**Windows:**
-1. Download `plcinfo.exe` from the latest release
-2. Place it in a directory of your choice
-3. (Optional) Add the directory to your PATH environment variable
-4. Run `plcinfo --version` to verify installation
+| Platform | Asset |
+|---|---|
+| Windows x64 | `plcinfo.exe`, or `plcinfo-<version>-win-x64.zip` |
+| Windows ARM64 | `plcinfo-<version>-win-arm64.zip` |
+| Linux x64 / ARM64 | `plcinfo-<version>-linux-x64.tar.gz` / `plcinfo-<version>-linux-arm64.tar.gz` |
+| macOS Apple Silicon / Intel | `plcinfo-<version>-osx-arm64.tar.gz` / `plcinfo-<version>-osx-x64.tar.gz` |
 
-**Note:** The executable is self-contained and does not require .NET to be installed separately.
+Put the binary in a directory on your `PATH`, then run `plcinfo --version`. `SHA256SUMS.txt` on the release lists checksums for every asset.
 
-### Build from Source
+On macOS the binary isn't notarized. If Gatekeeper blocks it, run `xattr -d com.apple.quarantine plcinfo` once.
 
-If you prefer to build from source:
+### Install as a .NET tool
 
-**Prerequisites:**
-- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) or later
+With the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0), download `plcinfo.<version>.nupkg` from the release and run:
 
-**Using the build script (Windows):**
-```powershell
-git clone https://github.com/adamfisher/plcinfo.git
-cd plcinfo
-.\Build.ps1
+```bash
+dotnet tool install --global plcinfo --add-source <folder containing the .nupkg>
 ```
 
-The executable will be created in `publish/win-x64/plcinfo.exe`
+### Build from source
 
-**Manual build:**
 ```bash
 git clone https://github.com/adamfisher/plcinfo.git
 cd plcinfo
-dotnet build
+dotnet test                                   # build and run the test suite
+dotnet run --project PlcInfo -- summary project.L5X
 ```
 
-**Install as Global Tool:**
-```bash
-dotnet pack
-dotnet tool install --global --add-source ./PlcInfo/nupkg plcinfo
-```
-
-**Run directly:**
-```bash
-dotnet run --project PlcInfo -- [command] [options]
-```
+To produce a self-contained executable, use `./Build.ps1 -Runtime <rid>` (PowerShell 7 on any OS) or `dotnet publish PlcInfo -c Release -r <rid> --self-contained -p:PublishSingleFile=true`.
 
 ## Usage
 
@@ -393,106 +380,54 @@ git difftool --tool=plcinfo --no-prompt HEAD~1 -- project.L5X
 
 ## Quick Start Examples
 
-### Example 1: Basic Project Analysis
+### Review a change
 
 ```bash
-# Get a quick overview
-plcinfo summary MyProject.L5X
-
-# View the project structure
-plcinfo structure MyProject.L5X
-
-# List all controller-scoped tags
-plcinfo tags MyProject.L5X --scope controller
+plcinfo diff before.L5X after.L5X                          # rung-level report in the terminal
+plcinfo diff before.L5X after.L5X -f html -o changes.html  # visual before/after ladder diagrams
 ```
 
-### Example 2: Code Review Workflow
+### Gate a pull request in CI
 
 ```bash
-# Calculate complexity metrics
-plcinfo metrics MyProject.L5X --format md > metrics.md
-
-# Search for potential issues
-plcinfo search MyProject.L5X "TODO" --kind comment
-
-# Find all timer instructions
-plcinfo search MyProject.L5X "TON" --kind instruction
+plcinfo lint project.L5X --fail-on warning --ignore PLC006,PLC007
+plcinfo diff main.L5X project.L5X -f md -o changes.md      # exit code 1 means "changed", not "failed"
 ```
 
-### Example 3: Version Control Integration
+### Find who drives an output
 
 ```bash
-# Compare versions (returns exit code 1 if different)
-plcinfo diff main.L5X feature-branch.L5X --format md > changes.md
-
-# Use in CI/CD pipeline
-if plcinfo diff baseline.L5X current.L5X; then
-    echo "No changes detected"
-else
-    echo "Changes found - review required"
-    exit 1
-fi
+plcinfo xref project.L5X Conveyor_Run --writes
 ```
 
-### Example 4: Documentation Generation
+### Document a project
 
 ```bash
-# Generate project documentation
-plcinfo summary MyProject.L5X --format md > docs/summary.md
-plcinfo structure MyProject.L5X --format md > docs/structure.md
-plcinfo io MyProject.L5X --format md > docs/io-config.md
-plcinfo metrics MyProject.L5X --format md > docs/metrics.md
+plcinfo report project.L5X -o project.html                 # one self-contained page with rendered ladder
+plcinfo tags project.L5X -f csv -o tags.csv                 # tag list for Excel
+plcinfo io project.L5X -f md -o io.md
 ```
 
-### Example 5: Data Integration
+### Work with different PLC platforms
 
 ```bash
-# Export to JSON for custom processing
-plcinfo export MyProject.L5X --output project.json
-
-# Export tags as YAML
-plcinfo tags MyProject.L5X --format yaml > tags.yaml
-
-# Get metrics as JSON for monitoring dashboards
-plcinfo metrics MyProject.L5X --format json | curl -X POST https://monitoring.example.com/api/metrics
-```
-
-### Example 6: Working with Different PLC Platforms
-
-```bash
-# Rockwell L5X file
-plcinfo summary RockwellProject.L5X
-
-# Rockwell ACD archive
-plcinfo structure RockwellProject.ACD
-
-# Siemens Step 7 project
-plcinfo tags SiemensProject.s7p --format json
-
-# TIA Portal Openness export folder (blocks, PLC data types, tag tables)
-plcinfo metrics ./PLC_1 --format yaml
-
-# Step 7 STL source
-plcinfo structure MOTOR.awl
+plcinfo summary RockwellProject.L5X          # Rockwell export (full content)
+plcinfo summary RockwellProject.ACD          # Rockwell project file (partial content)
+plcinfo structure ./PLC_1                    # TIA Portal Openness export folder
+plcinfo structure MOTOR.awl                  # Step 7 STL source
+plcinfo metrics PLCopen.xml --format yaml    # CODESYS / Beremiz / OpenPLC PLCopen XML export
+plcinfo tags Machine.tsproj --io-only        # Beckhoff TwinCAT 3 project
 ```
 
 ## Output Formats
 
-### Text Format (Default)
-
-Clean, human-readable output suitable for terminal display.
-
-### JSON Format
-
-Structured data format for programmatic consumption and integration with other tools.
-
-### YAML Format
-
-Human-friendly structured format, ideal for configuration files and documentation.
-
-### Markdown Format
-
-Formatted documentation output with tables and hierarchy, perfect for generating reports or wiki pages.
+| Format | Use it for |
+|---|---|
+| `text` (default) | Reading in a terminal. |
+| `json`, `yaml` | Scripts and integrations. `export` writes the full neutral project model. |
+| `md` | Pull request comments, wikis and documentation. |
+| `csv` | Spreadsheets. Available for `tags`, `io`, `search`, `diff`, `xref` and `lint`. Files get a UTF-8 BOM so Excel detects the encoding. |
+| `html` | `report` and `diff`: self-contained pages with rendered ladder logic. |
 
 ## Use Cases
 
@@ -510,12 +445,12 @@ The tool uses a modular parser architecture with vendor-specific parsers impleme
 
 ## Contributing
 
-Contributions are welcome! This project especially needs:
+Contributions are welcome, especially:
 
-- **Testing with real-world PLC files** from various manufacturers and versions
-- **Parser improvements** for better file format support
-- **Bug reports** when encountering unsupported file variations
-- **Example files** (with sensitive data removed) for testing
-- **Feature requests** for additional analysis capabilities
+- **Real-world PLC exports** from other vendors and versions. Test fixtures must be permissively licensed (MIT, BSD, Apache-2.0, 0BSD or CC0), unmodified, pinned to a commit and listed in `PlcInfo.Tests/Fixtures/THIRD_PARTY_NOTICES.md`.
+- **Parser improvements** for format variations that aren't handled yet. Run plcinfo on the file and open an issue with the warning or error it prints.
+- **New lint rules and analyses.**
+
+Every pull request is built and tested on Ubuntu and Windows (`.github/workflows/ci.yml`), and warnings are treated as errors.
 
 If you work with PLCs and have example project files you can share, please consider contributing them to help improve the tool's reliability across different PLC platforms and versions.

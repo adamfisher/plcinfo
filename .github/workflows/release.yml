@@ -1,0 +1,83 @@
+name: Release
+
+# Push a version tag (e.g. 2.0.0) to build self-contained binaries for every
+# platform, run the tests, and publish a GitHub release with the notes in
+# docs/releases/<tag>.md.
+on:
+  push:
+    tags: ['[0-9]+.[0-9]+.[0-9]+*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to (re)build and publish
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Check version and release notes
+        run: |
+          version="${TAG}"
+          grep -q "<Version>${version}</Version>" PlcInfo/PlcInfo.csproj \
+            || { echo "PlcInfo.csproj <Version> does not match tag ${TAG}"; exit 1; }
+          test -f "docs/releases/${TAG}.md" || { echo "missing docs/releases/${TAG}.md"; exit 1; }
+
+      - name: Test
+        run: dotnet test --configuration Release
+
+      - name: Publish binaries
+        run: |
+          mkdir -p dist
+          for rid in win-x64 win-arm64 linux-x64 linux-arm64 osx-x64 osx-arm64; do
+            dotnet publish PlcInfo/PlcInfo.csproj --configuration Release --runtime "$rid" \
+              --self-contained true -p:PublishSingleFile=true -p:DebugType=None \
+              -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:Version="${TAG}" \
+              --output "out/$rid"
+            cp README.md LICENSE THIRD_PARTY_NOTICES.md "out/$rid/"
+            name="plcinfo-${TAG}-${rid}"
+            if [[ "$rid" == win-* ]]; then
+              (cd "out/$rid" && zip -q -r "../../dist/${name}.zip" .)
+            else
+              tar -C "out/$rid" -czf "dist/${name}.tar.gz" .
+            fi
+          done
+          # Keep the bare Windows executable as an asset, as in earlier releases.
+          cp out/win-x64/plcinfo.exe dist/plcinfo.exe
+
+      - name: Pack .NET tool
+        run: dotnet pack PlcInfo/PlcInfo.csproj --configuration Release -p:Version="${TAG}" --output dist
+
+      - name: Smoke test the Linux binary
+        run: |
+          ./out/linux-x64/plcinfo --version | grep -qx "plcinfo ${TAG}"
+          ./out/linux-x64/plcinfo summary PlcInfo.Tests/Fixtures/Rockwell/ExampleForCICD_L85E.L5X
+
+      - name: Checksums
+        run: (cd dist && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt)
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            gh release upload "${TAG}" dist/* --clobber
+          else
+            gh release create "${TAG}" dist/* --title "v${TAG}" --notes-file "docs/releases/${TAG}.md" --verify-tag
+          fi
