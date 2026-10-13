@@ -26,7 +26,14 @@ PLCInfo provides a unified interface to read and analyze PLC project files from 
   - `.s7p` (Step 7 Project archives)
   - TIA Portal project files
 - **CODESYS** project files
-- **Beckhoff TwinCAT** project files
+- **Beckhoff TwinCAT 3**
+  - `.tsproj` (system manager project): tasks, the I/O tree (EtherCAT devices and nested boxes) with
+    PLC variable links, and every referenced PLC project (via `PrjFilePath` or an `_Config/PLC/*.xti` file)
+  - `.plcproj` (PLC project): all listed `.TcPOU`, `.TcIO`, `.TcGVL`, `.TcDUT` and `.TcTTO` sources
+  - a single `.TcPOU`, `.TcIO`, `.TcGVL`, `.TcDUT` or `.TcTTO` file
+  - POUs keep their ST source per body, method, property accessor, action and transition; graphical
+    bodies (SFC, LD, FBD, CFC) are recorded with their language but not rendered yet. Archives
+    (`.tszip`, `.tnzip`) must be extracted first.
 
 > **Note:** This project is still in development and needs testing with real-world PLC files from various manufacturers. If you encounter any issues or have example files to contribute, please open an issue or submit a pull request. I'm not an industrial automation engineer and don't have access to a comprehensive set of PLC project files. Community contributions for testing and validation would be greatly appreciated!
 

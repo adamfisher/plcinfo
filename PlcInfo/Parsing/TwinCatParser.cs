@@ -1,63 +1,238 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
+using System.Xml;
 using System.Xml.Linq;
 using PlcInfo.Models;
 
 namespace PlcInfo.Parsing;
 
 /// <summary>
-/// Parser for Beckhoff TwinCAT 3 project files (.tsproj).
+/// Parser for Beckhoff TwinCAT 3 projects: the system manager project (.tsproj), a PLC project
+/// (.plcproj) or a single PLC object file (.TcPOU, .TcGVL, .TcDUT, .TcIO, .TcTTO).
 /// </summary>
-public class TwinCatParser : IPlcProjectParser
+/// <remarks>
+/// A .tsproj references its PLC projects via Plc/Project@PrjFilePath, or via an .xti file under
+/// _Config/PLC/ when "Independent Project File" is enabled. A .plcproj (MSBuild) lists its sources
+/// as Compile@Include. Each source is a TcPlcObject XML file whose POU kind is the first keyword of
+/// its Declaration text (see specs: beckhoff-twincat.md §2-§4).
+/// </remarks>
+public partial class TwinCatParser : IPlcProjectParser
 {
+    private const string MsBuildNamespace = "http://schemas.microsoft.com/developer/msbuild/2003";
+    private const long MaxFileBytes = 64L * 1024 * 1024;
+
+    private static readonly HashSet<string> ProjectExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".tsproj", ".plcproj", ".tcpou", ".tcgvl", ".tcdut", ".tcio", ".tctto", ".tpy", ".tszip", ".tnzip", ".tpzip"
+    };
+
+    // PLC object files that carry logic, data types, variables or task assignments.
+    private static readonly HashSet<string> SourceExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".tcpou", ".tcgvl", ".tcdut", ".tcio", ".tctto"
+    };
+
+    private static readonly Regex ChannelName = new(@"\bChannel (\d+)\b", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
     /// <inheritdoc/>
     public bool CanParse(string filePath)
     {
-        var extension = Path.GetExtension(filePath).ToLower();
-        if (extension == ".tsproj" || extension == ".tspproj" ||
-            extension == ".tpy" || extension == ".tszip" || extension == ".tnzip")
+        var extension = Path.GetExtension(filePath);
+        if (ProjectExtensions.Contains(extension))
             return true;
 
-        if (!File.Exists(filePath))
+        if (!extension.Equals(".xml", StringComparison.OrdinalIgnoreCase) || !File.Exists(filePath))
             return false;
 
-        // Check if it's a TwinCAT XML file
-        if (extension == ".xml")
+        try
         {
-            try
-            {
-                var firstLines = File.ReadLines(filePath).Take(5).ToList();
-                return firstLines.Any(line =>
-                    line.Contains("TcSmProject", StringComparison.OrdinalIgnoreCase) ||
-                    line.Contains("TwinCAT", StringComparison.OrdinalIgnoreCase));
-            }
-            catch
-            {
-                return false;
-            }
+            var firstLines = File.ReadLines(filePath).Take(5).ToList();
+            return firstLines.Any(line =>
+                line.Contains("TcSmProject", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("TcPlcObject", StringComparison.OrdinalIgnoreCase));
         }
-
-        return false;
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     /// <inheritdoc/>
-    public async Task<PlcProject> ParseAsync(string filePath, CancellationToken cancellationToken = default)
+    public Task<PlcProject> ParseAsync(string filePath, CancellationToken cancellationToken = default)
     {
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"File not found: {filePath}");
 
-        var content = await File.ReadAllTextAsync(filePath, cancellationToken);
-        var doc = XDocument.Parse(content);
+        var extension = Path.GetExtension(filePath).ToLowerInvariant();
+        if (extension is ".tszip" or ".tnzip" or ".tpzip" || IsZipFile(filePath))
+            throw new NotSupportedException(
+                $"{Path.GetFileName(filePath)} is a TwinCAT archive. Extract it and pass the .tsproj or .plcproj file inside.");
 
-        var root = doc.Root;
-        if (root == null)
-            throw new InvalidOperationException("Invalid TwinCAT project file: no root element");
+        XDocument doc;
+        try
+        {
+            doc = LoadXml(filePath);
+        }
+        catch (XmlException ex)
+        {
+            throw new InvalidOperationException($"{Path.GetFileName(filePath)} is not a valid TwinCAT XML file: {ex.Message}", ex);
+        }
 
-        var projectName = ExtractProjectName(root, filePath);
-        var controller = ExtractControllerInfo(root, projectName);
-        var tasks = ParseTasks(root);
-        var programs = ParsePlcProjects(root, filePath);
-        var tags = ParseGlobalVariables(root);
-        var modules = ParseIoConfiguration(root);
+        var root = doc.Root ?? throw new InvalidOperationException("Invalid TwinCAT project file: no root element");
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var project = root.Name.LocalName switch
+        {
+            "TcSmProject" => ParseSystemProject(root, filePath, cancellationToken),
+            "Project" when root.Name.NamespaceName == MsBuildNamespace => ParsePlcProjectRoot(root, filePath, cancellationToken),
+            "TcPlcObject" => ParseObjectFileRoot(root, filePath),
+            "TcSmItem" => throw new NotSupportedException(
+                $"{Path.GetFileName(filePath)} is part of a TwinCAT project (.xti). Pass the .tsproj that references it."),
+            "PlcProjectInfo" => throw new NotSupportedException(
+                $"{Path.GetFileName(filePath)} is a TwinCAT 2 compatible symbol file (.tpy), which is not supported. Pass the .tsproj or .plcproj."),
+            _ => throw new NotSupportedException(
+                $"{Path.GetFileName(filePath)} has root element <{root.Name.LocalName}>, which is not a TwinCAT 3 project. " +
+                "Pass a .tsproj, .plcproj, .TcPOU, .TcGVL or .TcDUT file.")
+        };
+
+        return Task.FromResult(project);
+    }
+
+    // ---- Entry points per file kind ----
+
+    private PlcProject ParseSystemProject(XElement root, string filePath, CancellationToken cancellationToken)
+    {
+        var projectDir = Path.GetDirectoryName(Path.GetFullPath(filePath)) ?? ".";
+        var context = new ParseContext(projectDir);
+        var projectElement = root.Element("Project");
+
+        var tasks = ParseSystemTasks(projectElement);
+        var plcNames = new List<string>();
+
+        var plcProjects = projectElement?.Element("Plc")?.Elements("Project").ToList() ?? new List<XElement>();
+        foreach (var plcProject in plcProjects)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var (element, baseDir) = ResolveXtiReference(plcProject, "PLC", context);
+            if (element == null)
+                continue;
+
+            var name = element.Attribute("Name")?.Value;
+            var prjFilePath = element.Attribute("PrjFilePath")?.Value;
+            if (string.IsNullOrEmpty(prjFilePath))
+            {
+                context.Warn($"PLC project '{name ?? "?"}' has no PrjFilePath, so its sources were not read.");
+                continue;
+            }
+
+            var plcPath = ResolveProjectReference(projectDir, baseDir, prjFilePath);
+            if (plcPath == null)
+            {
+                context.Warn($"PLC project file '{prjFilePath}' was skipped because it points outside the project directory.");
+                continue;
+            }
+            if (!File.Exists(plcPath))
+            {
+                context.Warn($"PLC project file '{prjFilePath}' was not found.");
+                continue;
+            }
+
+            var plcName = LoadPlcProject(plcPath, context, cancellationToken) ?? name ?? Path.GetFileNameWithoutExtension(plcPath);
+            plcNames.Add(plcName);
+        }
+
+        if (plcProjects.Count == 0)
+            context.Warn("The project references no PLC project, so only tasks and I/O were read.");
+
+        var modules = ParseIoTree(projectElement, context);
+        var linkCount = ApplyIoMappings(root, modules, context);
+
+        tasks = MergeTasks(tasks, context.Tasks);
+        AssignProgramsToTasks(tasks, context.Programs);
+
+        var settings = projectElement?.Element("System")?.Element("Settings");
+        var controller = new ControllerInfo
+        {
+            Name = plcNames.FirstOrDefault() ?? Path.GetFileNameWithoutExtension(filePath),
+            Vendor = "Beckhoff",
+            Type = "TwinCAT 3",
+            FirmwareRevision = root.Attribute("TcVersion")?.Value ?? "",
+            Properties = new Dictionary<string, string>()
+        };
+        AddIfPresent(controller.Properties, "AmsNetId", projectElement?.Attribute("TargetNetId")?.Value);
+        AddIfPresent(controller.Properties, "Target64Bit", projectElement?.Attribute("Target64Bit")?.Value);
+        AddIfPresent(controller.Properties, "MaxCpus", settings?.Attribute("MaxCpus")?.Value);
+
+        var metadata = new Dictionary<string, string>
+        {
+            ["TwinCATVersion"] = root.Attribute("TcVersion")?.Value ?? "",
+            ["TcSmVersion"] = root.Attribute("TcSmVersion")?.Value ?? "",
+            ["ProjectGuid"] = projectElement?.Attribute("ProjectGUID")?.Value ?? "",
+            ["PlcProjects"] = string.Join(", ", plcNames)
+        };
+        if (linkCount > 0)
+            metadata["IoLinks"] = linkCount.ToString(CultureInfo.InvariantCulture);
+
+        return BuildProject(filePath, controller, tasks, modules, context, metadata);
+    }
+
+    private PlcProject ParsePlcProjectRoot(XElement root, string filePath, CancellationToken cancellationToken)
+    {
+        var projectDir = Path.GetDirectoryName(Path.GetFullPath(filePath)) ?? ".";
+        var context = new ParseContext(projectDir);
+        var name = LoadPlcProject(Path.GetFullPath(filePath), context, cancellationToken, root)
+                   ?? Path.GetFileNameWithoutExtension(filePath);
+
+        var tasks = MergeTasks(new List<TaskInfo>(), context.Tasks);
+        AssignProgramsToTasks(tasks, context.Programs);
+
+        var properties = root.Elements(XName.Get("PropertyGroup", MsBuildNamespace)).Elements().ToList();
+        var controller = new ControllerInfo
+        {
+            Name = name,
+            Vendor = "Beckhoff",
+            Type = "TwinCAT 3 PLC project",
+            FirmwareRevision = properties.FirstOrDefault(e => e.Name.LocalName == "ProgramVersion")?.Value ?? ""
+        };
+
+        var metadata = new Dictionary<string, string>
+        {
+            ["ProjectGuid"] = properties.FirstOrDefault(e => e.Name.LocalName == "ProjectGuid")?.Value ?? "",
+            ["PlcProjects"] = name
+        };
+
+        return BuildProject(filePath, controller, tasks, Array.Empty<IoModuleInfo>(), context, metadata);
+    }
+
+    private PlcProject ParseObjectFileRoot(XElement root, string filePath)
+    {
+        var projectDir = Path.GetDirectoryName(Path.GetFullPath(filePath)) ?? ".";
+        var context = new ParseContext(projectDir);
+        ReadPlcObjects(root, Path.GetFileName(filePath), plcProject: null, context);
+
+        var tasks = MergeTasks(new List<TaskInfo>(), context.Tasks);
+        AssignProgramsToTasks(tasks, context.Programs);
+
+        var metadata = new Dictionary<string, string>
+        {
+            ["ProductVersion"] = root.Attribute("ProductVersion")?.Value ?? "",
+            ["TcPlcObjectVersion"] = root.Attribute("Version")?.Value ?? ""
+        };
+        return BuildProject(filePath, controller: null, tasks, Array.Empty<IoModuleInfo>(), context, metadata);
+    }
+
+    private static PlcProject BuildProject(
+        string filePath,
+        ControllerInfo? controller,
+        IReadOnlyList<TaskInfo> tasks,
+        IReadOnlyList<IoModuleInfo> modules,
+        ParseContext context,
+        Dictionary<string, string> metadata)
+    {
+        if (context.Libraries.Count > 0)
+            metadata["Libraries"] = string.Join(", ", context.Libraries.Distinct(StringComparer.OrdinalIgnoreCase));
+        if (context.Warnings.Count > 0)
+            metadata["Warnings"] = string.Join("\n", context.Warnings);
 
         return new PlcProject
         {
@@ -66,993 +241,681 @@ public class TwinCatParser : IPlcProjectParser
             FilePath = filePath,
             Controller = controller,
             Tasks = tasks,
-            Programs = programs,
-            Tags = tags,
+            Programs = context.Programs,
+            Tags = context.Tags,
             IoModules = modules,
+            DataTypes = context.DataTypes,
             LastModified = File.GetLastWriteTime(filePath),
-            Metadata = new Dictionary<string, string>
-            {
-                ["TwinCATVersion"] = root.Attribute("TcVersion")?.Value ?? "3.1",
-                ["TcSmVersion"] = root.Attribute("TcSmVersion")?.Value ?? "",
-                ["ProjectGuid"] = root.Element("Project")?.Attribute("ProjectGuid")?.Value ?? "",
-                ["ProductVersion"] = root.Attribute("ProductVersion")?.Value ?? ""
-            }
+            Metadata = metadata
         };
     }
 
-    private string ExtractProjectName(XElement root, string filePath)
+    // ---- PLC project (.plcproj) ----
+
+    /// <summary>Loads every PLC source a .plcproj lists. Returns the PLC project name, or null if unreadable.</summary>
+    private string? LoadPlcProject(string plcPath, ParseContext context, CancellationToken cancellationToken, XElement? root = null)
     {
-        return root.Element("Project")?.Attribute("Name")?.Value ??
-               root.Attribute("Name")?.Value ??
-               Path.GetFileNameWithoutExtension(filePath);
+        var displayPath = context.Relative(plcPath);
+        if (root == null)
+        {
+            try
+            {
+                root = LoadXml(plcPath).Root;
+            }
+            catch (Exception ex) when (ex is XmlException or IOException or InvalidDataException)
+            {
+                context.Warn($"PLC project file '{displayPath}' could not be read: {ex.Message}");
+                return null;
+            }
+        }
+
+        XNamespace ns = MsBuildNamespace;
+        if (root == null || root.Name != ns + "Project")
+        {
+            context.Warn($"'{displayPath}' is not an MSBuild PLC project, so its sources were not read.");
+            return null;
+        }
+
+        var name = root.Elements(ns + "PropertyGroup").Elements(ns + "Name").FirstOrDefault()?.Value
+                   ?? Path.GetFileNameWithoutExtension(plcPath);
+        var plcDir = Path.GetDirectoryName(plcPath) ?? context.RootDir;
+
+        var sources = root.Descendants(ns + "Compile")
+            .Select(c => c.Attribute("Include")?.Value)
+            .Where(include => !string.IsNullOrEmpty(include))
+            .Select(include => UnescapeMsBuild(include!))
+            .Where(include => SourceExtensions.Contains(Path.GetExtension(include)))
+            .ToList();
+
+        if (sources.Count == 0)
+            context.Warn($"PLC project '{name}' lists no POU, GVL, DUT or task files.");
+
+        foreach (var include in sources)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var sourcePath = ResolveProjectReference(context.RootDir, plcDir, include);
+            if (sourcePath == null)
+            {
+                context.Warn($"PLC project '{name}': source '{include}' was skipped because it points outside the project directory.");
+                continue;
+            }
+            if (!File.Exists(sourcePath))
+            {
+                context.Warn($"PLC project '{name}': source file '{include}' was not found.");
+                continue;
+            }
+
+            XElement? objectRoot;
+            try
+            {
+                objectRoot = LoadXml(sourcePath).Root;
+            }
+            catch (Exception ex) when (ex is XmlException or IOException or InvalidDataException)
+            {
+                context.Warn($"PLC project '{name}': source file '{include}' could not be read: {ex.Message}");
+                continue;
+            }
+
+            if (objectRoot?.Name.LocalName != "TcPlcObject")
+            {
+                context.Warn($"PLC project '{name}': source file '{include}' is not a TcPlcObject file and was skipped.");
+                continue;
+            }
+            ReadPlcObjects(objectRoot, context.Relative(sourcePath), name, context);
+        }
+
+        foreach (var reference in root.Descendants(ns + "PlaceholderReference").Concat(root.Descendants(ns + "LibraryReference")))
+        {
+            var include = reference.Attribute("Include")?.Value;
+            if (!string.IsNullOrEmpty(include))
+                context.Libraries.Add(include);
+        }
+
+        return name;
     }
 
-    private ControllerInfo ExtractControllerInfo(XElement root, string projectName)
+    // MSBuild escapes special characters in item specs as %XX (e.g. %3B for ';').
+    private static string UnescapeMsBuild(string value)
     {
-        // Look for Device element first, then fall back to project name
-        var deviceElement = root.Descendants("Device").FirstOrDefault();
-        var controllerName = deviceElement?.Attribute("Name")?.Value ?? projectName;
+        if (!value.Contains('%'))
+            return value;
+        return Regex.Replace(value, "%([0-9A-Fa-f]{2})",
+            m => ((char)int.Parse(m.Groups[1].Value, NumberStyles.HexNumber, CultureInfo.InvariantCulture)).ToString());
+    }
 
-        var controller = new ControllerInfo
+    // ---- PLC object files (TcPlcObject) ----
+
+    private static void ReadPlcObjects(XElement root, string displayPath, string? plcProject, ParseContext context)
+    {
+        var recognised = 0;
+        foreach (var element in root.Elements())
         {
-            Name = controllerName,
-            Vendor = "Beckhoff",
-            Type = "TwinCAT 3 Runtime",
+            switch (element.Name.LocalName)
+            {
+                case "POU":
+                case "Itf":
+                    context.Programs.Add(ReadPou(element, displayPath, plcProject, context));
+                    recognised++;
+                    break;
+                case "GVL":
+                    ReadGvl(element, plcProject, context);
+                    recognised++;
+                    break;
+                case "DUT":
+                    ReadDut(element, displayPath, plcProject, context);
+                    recognised++;
+                    break;
+                case "Task":
+                    context.Tasks.Add(ReadPlcTask(element, plcProject));
+                    recognised++;
+                    break;
+            }
+        }
+
+        if (recognised == 0)
+            context.Warn($"'{displayPath}' contains no POU, interface, GVL, DUT or task.");
+    }
+
+    private static ProgramInfo ReadPou(XElement element, string displayPath, string? plcProject, ParseContext context)
+    {
+        var declaration = element.Element("Declaration")?.Value ?? "";
+        var header = ParsePouHeader(declaration);
+        var name = element.Attribute("Name")?.Value ?? header.Name ?? "Unknown";
+        var isInterface = element.Name.LocalName == "Itf";
+
+        var type = MapPouKind(header.Keyword);
+        if (type == null)
+        {
+            type = isInterface ? "Interface" : "Unknown";
+            if (!isInterface)
+                context.Warn($"POU '{name}' in '{displayPath}' does not start with PROGRAM, FUNCTION_BLOCK, FUNCTION or INTERFACE.");
+        }
+
+        var routines = new List<RoutineInfo>();
+        var implementation = element.Element("Implementation");
+        if (implementation != null)
+            routines.Add(BuildRoutine(name, "Main", name, implementation, null, null));
+
+        foreach (var child in ChildObjects(element))
+        {
+            var childName = child.Attribute("Name")?.Value ?? child.Name.LocalName;
+            var childDeclaration = child.Element("Declaration")?.Value;
+            if (child.Name.LocalName != "Property")
+            {
+                routines.Add(BuildRoutine(childName, child.Name.LocalName, name, child.Element("Implementation"), childDeclaration, child));
+                continue;
+            }
+
+            var accessors = child.Elements().Where(e => e.Name.LocalName is "Get" or "Set").ToList();
+            if (accessors.Count == 0)
+                routines.Add(BuildRoutine(childName, "Property", name, null, childDeclaration, child));
+            foreach (var accessor in accessors)
+            {
+                var routine = BuildRoutine($"{childName}.{accessor.Name.LocalName}", "Property", name,
+                    accessor.Element("Implementation"), childDeclaration, accessor);
+                var accessorDeclaration = accessor.Element("Declaration")?.Value.Trim();
+                if (!string.IsNullOrEmpty(accessorDeclaration))
+                    routine.Properties["AccessorDeclaration"] = accessorDeclaration;
+                routines.Add(routine);
+            }
+        }
+
+        var program = new ProgramInfo
+        {
+            Name = name,
+            Type = type,
+            Language = routines.FirstOrDefault(r => r.Type == "Main")?.Language ?? "Declaration",
+            Routines = routines,
+            LocalTags = ParseDeclarationText(declaration, name),
             Properties = new Dictionary<string, string>()
         };
 
-        // Check for CPU type in Device/Module
-        if (deviceElement != null)
-        {
-            var cpuModule = deviceElement.Element("Module");
-            if (cpuModule != null)
-            {
-                var typeProperty = cpuModule.Descendants("Property")
-                    .FirstOrDefault(p => p.Attribute("Name")?.Value == "Type");
-                if (typeProperty != null)
-                {
-                    controller.Type = typeProperty.Attribute("Value")?.Value ?? controller.Type;
-                }
+        AddIfPresent(program.Properties, "Id", element.Attribute("Id")?.Value);
+        AddIfPresent(program.Properties, "SpecialFunc", element.Attribute("SpecialFunc")?.Value);
+        AddIfPresent(program.Properties, "Extends", header.Extends);
+        AddIfPresent(program.Properties, "ReturnType", header.ReturnType);
+        if (header.Implements.Count > 0) program.Properties["Implements"] = string.Join(", ", header.Implements);
+        if (header.Modifiers.Count > 0) program.Properties["Modifiers"] = string.Join(" ", header.Modifiers);
+        AddIfPresent(program.Properties, "PlcProject", plcProject);
+        program.Properties["File"] = displayPath;
+        foreach (var tag in program.LocalTags)
+            AddIfPresent(tag.Properties, "PlcProject", plcProject);
 
-                var versionProperty = cpuModule.Descendants("Property")
-                    .FirstOrDefault(p => p.Attribute("Name")?.Value == "Version");
-
-                if (versionProperty != null)
-                {
-                    controller.FirmwareRevision = versionProperty.Attribute("Value")?.Value ?? controller.FirmwareRevision;
-                }
-            }
-        }
-
-        // Find system configuration
-        var systemElement = root.Descendants("System").FirstOrDefault() ??
-                           root.Descendants("TcSmProject").FirstOrDefault();
-
-        if (systemElement != null)
-        {
-            // Extract target system info
-            var targetElement = systemElement.Element("TargetSystem") ??
-                               systemElement.Descendants("Target").FirstOrDefault();
-
-            if (targetElement != null)
-            {
-                controller.Type = targetElement.Attribute("Type")?.Value ?? "TwinCAT 3 Runtime";
-                controller.CpuType = targetElement.Attribute("CpuType")?.Value ??
-                                    targetElement.Element("Cpu")?.Value;
-                controller.FirmwareRevision = targetElement.Attribute("Version")?.Value ?? "";
-
-                // AMS NetId
-                var amsNetId = targetElement.Attribute("AmsNetId")?.Value ??
-                               targetElement.Element("AmsNetId")?.Value;
-                if (!string.IsNullOrEmpty(amsNetId))
-                {
-                    controller.Properties["AmsNetId"] = amsNetId;
-                }
-            }
-
-            // Extract routes/network info
-            var routeCount = systemElement.Descendants("Route").Count();
-            if (routeCount > 0)
-            {
-                controller.NetworkCount = routeCount;
-            }
-        }
-
-        // Extract settings
-        var settingsElement = root.Descendants("Settings").FirstOrDefault();
-        if (settingsElement != null)
-        {
-            var maxCpus = settingsElement.Element("MaxCpus")?.Value;
-            if (!string.IsNullOrEmpty(maxCpus))
-            {
-                controller.Properties["MaxCpus"] = maxCpus;
-            }
-
-            var routerMemory = settingsElement.Element("RouterMemory")?.Value;
-            if (!string.IsNullOrEmpty(routerMemory))
-            {
-                controller.Properties["RouterMemory"] = routerMemory;
-            }
-        }
-
-        return controller;
+        return program;
     }
 
-    private IReadOnlyList<TaskInfo> ParseTasks(XElement root)
+    // Methods, properties, actions and transitions, including any grouped under <Folder> elements.
+    private static IEnumerable<XElement> ChildObjects(XElement pou)
+    {
+        foreach (var child in pou.Elements())
+        {
+            if (child.Name.LocalName == "Folder")
+            {
+                foreach (var nested in ChildObjects(child))
+                    yield return nested;
+            }
+            else if (child.Name.LocalName is "Method" or "Property" or "Action" or "Transition")
+            {
+                yield return child;
+            }
+        }
+    }
+
+    private static RoutineInfo BuildRoutine(
+        string name, string type, string owner, XElement? implementation, string? declaration, XElement? source)
+    {
+        var routine = new RoutineInfo
+        {
+            Name = name,
+            Type = type,
+            ProgramName = owner,
+            Properties = new Dictionary<string, string>()
+        };
+
+        var body = implementation?.Elements().FirstOrDefault();
+        if (body == null)
+        {
+            // Interface members and abstract methods have a declaration but no body.
+            routine.Language = "Declaration";
+        }
+        else
+        {
+            routine.Language = body.Name.LocalName;
+            if (body.Name.LocalName is "ST" or "IL")
+            {
+                routine.Source = body.Value;
+            }
+            else
+            {
+                // SFC, LD, FBD and CFC bodies are XML archives; rendering them is not supported yet.
+                routine.Properties["Graphical"] = "true";
+            }
+        }
+
+        AddIfPresent(routine.Properties, "Id", source?.Attribute("Id")?.Value);
+        var trimmed = declaration?.Trim();
+        if (!string.IsNullOrEmpty(trimmed))
+            routine.Properties["Declaration"] = trimmed;
+        return routine;
+    }
+
+    private static void ReadGvl(XElement element, string? plcProject, ParseContext context)
+    {
+        var name = element.Attribute("Name")?.Value ?? "GVL";
+        foreach (var tag in ParseDeclarationText(element.Element("Declaration")?.Value ?? "", name))
+        {
+            AddIfPresent(tag.Properties, "PlcProject", plcProject);
+            context.Tags.Add(tag);
+        }
+    }
+
+    private static void ReadDut(XElement element, string displayPath, string? plcProject, ParseContext context)
+    {
+        var name = element.Attribute("Name")?.Value ?? "Unknown";
+        var dataType = ParseDutDeclaration(element.Element("Declaration")?.Value ?? "");
+        if (dataType == null)
+        {
+            context.Warn($"Data type '{name}' in '{displayPath}' has no TYPE ... END_TYPE declaration and was skipped.");
+            return;
+        }
+
+        dataType.Name = name;
+        AddIfPresent(dataType.Properties, "Id", element.Attribute("Id")?.Value);
+        AddIfPresent(dataType.Properties, "PlcProject", plcProject);
+        context.DataTypes.Add(dataType);
+    }
+
+    private static TaskInfo ReadPlcTask(XElement element, string? plcProject)
+    {
+        // .TcTTO CycleTime is in microseconds (the file's own comment says so).
+        double? rate = long.TryParse(element.Element("CycleTime")?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var us)
+            ? us / 1000.0
+            : null;
+
+        var task = new TaskInfo
+        {
+            Name = element.Attribute("Name")?.Value ?? "PlcTask",
+            Type = rate.HasValue ? "Cyclic" : "Freewheeling",
+            Priority = int.TryParse(element.Element("Priority")?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var p) ? p : 20,
+            Rate = rate,
+            ProgramNames = element.Elements("PouCall")
+                .Select(c => c.Element("Name")?.Value.Trim())
+                .Where(n => !string.IsNullOrEmpty(n))
+                .Select(n => n!)
+                .ToList(),
+            Properties = new Dictionary<string, string>()
+        };
+        AddIfPresent(task.Properties, "PlcProject", plcProject);
+        return task;
+    }
+
+    // ---- Tasks ----
+
+    private static List<TaskInfo> ParseSystemTasks(XElement? projectElement)
     {
         var tasks = new List<TaskInfo>();
-
-        // Find task configuration in TwinCAT system
-        var taskElements = root.Descendants("Task")
-            .Concat(root.Descendants("TcTask"))
-            .Concat(root.Descendants("PlcTask"));
-
-        foreach (var taskElement in taskElements)
+        foreach (var element in projectElement?.Element("System")?.Element("Tasks")?.Elements("Task") ?? Enumerable.Empty<XElement>())
         {
+            // System/Tasks/Task@CycleTime is in 100 ns ticks (100000 = 10 ms), unlike .TcTTO (µs).
+            double? rate = long.TryParse(element.Attribute("CycleTime")?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var ticks)
+                ? ticks / 10000.0
+                : null;
+
             var task = new TaskInfo
             {
-                Name = taskElement.Attribute("Name")?.Value ??
-                       taskElement.Element("Name")?.Value ?? "Task",
-                Type = DetermineTaskType(taskElement),
-                Priority = ParseTaskPriority(taskElement),
-                Rate = ParseCycleTime(taskElement),
-                IsEnabled = !bool.TryParse(taskElement.Attribute("Disabled")?.Value, out var disabled) || !disabled,
+                Name = element.Element("Name")?.Value ?? element.Attribute("Name")?.Value ?? "Task",
+                Type = rate.HasValue ? "Cyclic" : "Freewheeling",
+                Priority = int.TryParse(element.Attribute("Priority")?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var p) ? p : 0,
+                Rate = rate,
+                IsEnabled = !string.Equals(element.Attribute("Disabled")?.Value, "true", StringComparison.OrdinalIgnoreCase),
                 Properties = new Dictionary<string, string>()
             };
-
-            // Extract CPU affinity
-            var cpuAffinity = taskElement.Element("CpuAffinity")?.Value ??
-                             taskElement.Attribute("CpuAffinity")?.Value;
-            if (!string.IsNullOrEmpty(cpuAffinity))
-            {
-                task.Properties["CpuAffinity"] = cpuAffinity;
-            }
-
-            // Extract task context
-            var context = taskElement.Element("Context")?.Attribute("Id")?.Value;
-            if (!string.IsNullOrEmpty(context))
-            {
-                task.Properties["ContextId"] = context;
-            }
-
-            // Find linked POUs
-            var linkedPous = taskElement.Descendants("Object")
-                .Where(o => o.Attribute("Type")?.Value == "POU" ||
-                           o.Parent?.Name.LocalName == "Implementation")
-                .Select(o => o.Attribute("Name")?.Value ?? o.Value)
-                .Where(n => !string.IsNullOrEmpty(n))
-                .ToList();
-
-            task.ProgramNames = linkedPous;
-
-            // Watchdog settings
-            var watchdog = taskElement.Element("Watchdog");
-            if (watchdog != null)
-            {
-                if (double.TryParse(watchdog.Attribute("Time")?.Value, out var watchdogTime))
-                {
-                    task.WatchdogTimeout = watchdogTime;
-                }
-            }
-
+            AddIfPresent(task.Properties, "Id", element.Attribute("Id")?.Value);
+            AddIfPresent(task.Properties, "AmsPort", element.Attribute("AmsPort")?.Value);
+            AddIfPresent(task.Properties, "Affinity", element.Attribute("Affinity")?.Value);
             tasks.Add(task);
         }
-
-        // If no tasks found, look in PLC projects
-        if (tasks.Count == 0)
-        {
-            var plcProjects = root.Descendants("PlcProject").Concat(root.Descendants("Plc"));
-            foreach (var plcProject in plcProjects)
-            {
-                var projectTasks = plcProject.Descendants("Task");
-                foreach (var taskElement in projectTasks)
-                {
-                    var task = new TaskInfo
-                    {
-                        Name = taskElement.Attribute("Name")?.Value ?? "PlcTask",
-                        Type = "Cyclic",
-                        Priority = int.TryParse(taskElement.Attribute("Priority")?.Value, out var p) ? p : 20,
-                        Properties = new Dictionary<string, string>
-                        {
-                            ["PlcProject"] = plcProject.Attribute("Name")?.Value ?? ""
-                        }
-                    };
-
-                    tasks.Add(task);
-                }
-            }
-        }
-
         return tasks;
     }
 
-    private string DetermineTaskType(XElement taskElement)
+    // System tasks carry the runtime settings; the PLC's .TcTTO files say which programs each task calls.
+    private static List<TaskInfo> MergeTasks(List<TaskInfo> systemTasks, List<TaskInfo> plcTasks)
     {
-        var type = taskElement.Attribute("Type")?.Value ??
-                  taskElement.Element("Type")?.Value;
-
-        if (string.IsNullOrEmpty(type))
+        var merged = new List<TaskInfo>(systemTasks);
+        foreach (var plcTask in plcTasks)
         {
-            // Check for cycle time to determine if cyclic
-            if (taskElement.Element("CycleTime") != null ||
-                taskElement.Attribute("CycleTime") != null)
+            var existing = merged.FirstOrDefault(t => string.Equals(t.Name, plcTask.Name, StringComparison.OrdinalIgnoreCase));
+            if (existing == null)
             {
-                return "Cyclic";
-            }
-
-            return "Freewheeling";
-        }
-
-        return type switch
-        {
-            "1" => "Cyclic",
-            "2" => "Freewheeling",
-            "3" => "Event",
-            "4" => "External",
-            _ => type
-        };
-    }
-
-    private int ParseTaskPriority(XElement taskElement)
-    {
-        var priorityStr = taskElement.Attribute("Priority")?.Value ??
-                         taskElement.Element("Priority")?.Value;
-
-        if (int.TryParse(priorityStr, out var priority))
-            return priority;
-
-        return 20; // Default TwinCAT priority
-    }
-
-    private double? ParseCycleTime(XElement taskElement)
-    {
-        var cycleTimeStr = taskElement.Attribute("CycleTime")?.Value ??
-                          taskElement.Element("CycleTime")?.Value;
-
-        if (string.IsNullOrEmpty(cycleTimeStr))
-            return null;
-
-        // TwinCAT cycle time is usually in 100ns units
-        if (long.TryParse(cycleTimeStr, out var cycleTime100ns))
-        {
-            // Convert from 100ns to milliseconds
-            return cycleTime100ns / 10000.0;
-        }
-
-        // Try parsing as direct milliseconds if it contains decimal point
-        if (cycleTimeStr.Contains('.'))
-        {
-            if (double.TryParse(cycleTimeStr, out var ms))
-                return ms;
-        }
-
-        return null;
-    }
-
-    private IReadOnlyList<ProgramInfo> ParsePlcProjects(XElement root, string projectFilePath)
-    {
-        var programs = new List<ProgramInfo>();
-        var projectDir = Path.GetDirectoryName(projectFilePath) ?? "";
-
-        // First check for POUs directly in this document
-        var pous = root.Descendants("POU");
-        if (pous.Any())
-        {
-            programs.AddRange(ParsePousDirectly(pous));
-        }
-
-        // Then find PLC project references
-        var plcProjects = root.Descendants("PlcProject")
-            .Concat(root.Descendants("Plc"))
-            .Concat(root.Descendants("Project").Where(p =>
-                p.Attribute("Type")?.Value == "PlcProject" ||
-                p.Attribute("SubType")?.Value?.Contains("TwinCAT") == true));
-
-        foreach (var plcProject in plcProjects)
-        {
-            // Real .tsproj files reference the PLC project via PrjFilePath.
-            var plcProjectFile = plcProject.Attribute("File")?.Value ??
-                                plcProject.Attribute("PrjFilePath")?.Value ??
-                                plcProject.Element("File")?.Value;
-
-            if (!string.IsNullOrEmpty(plcProjectFile))
-            {
-                // Parse the referenced PLC project file
-                var plcPath = ResolveProjectReference(projectDir, plcProjectFile);
-
-                if (plcPath != null && File.Exists(plcPath))
-                {
-                    try
-                    {
-                        var plcPrograms = ParsePlcProjectFile(plcPath);
-                        programs.AddRange(plcPrograms);
-                    }
-                    catch { }
-                }
-            }
-
-            // Also parse inline POUs
-            var inlinePous = ParsePousFromElement(plcProject);
-            programs.AddRange(inlinePous);
-        }
-
-        // Look for PLC folders in project directory
-        if (programs.Count == 0)
-        {
-            var plcFolders = new[] { "_Boot", "PLC", "PlcProject", "Plc1" };
-            foreach (var folder in plcFolders)
-            {
-                var plcDir = Path.Combine(projectDir, folder);
-                if (Directory.Exists(plcDir))
-                {
-                    var plcFiles = Directory.GetFiles(plcDir, "*.plcproj", SearchOption.AllDirectories)
-                        .Concat(Directory.GetFiles(plcDir, "*.xti", SearchOption.AllDirectories));
-
-                    foreach (var plcFile in plcFiles)
-                    {
-                        try
-                        {
-                            var plcPrograms = ParsePlcProjectFile(plcFile);
-                            programs.AddRange(plcPrograms);
-                        }
-                        catch { }
-                    }
-                }
-            }
-        }
-
-        return programs;
-    }
-
-    private List<ProgramInfo> ParsePlcProjectFile(string plcPath)
-    {
-        var programs = new List<ProgramInfo>();
-
-        try
-        {
-            var content = File.ReadAllText(plcPath);
-            var doc = XDocument.Parse(content);
-
-            var pous = ParsePousFromElement(doc.Root);
-            programs.AddRange(pous);
-        }
-        catch { }
-
-        return programs;
-    }
-
-    private List<ProgramInfo> ParsePousFromElement(XElement? element)
-    {
-        var programs = new List<ProgramInfo>();
-
-        if (element == null)
-            return programs;
-
-        // Find POUs
-        var pouElements = element.Descendants("POU")
-            .Concat(element.Descendants("Pou"))
-            .Concat(element.Descendants("Object").Where(o =>
-                o.Attribute("Type")?.Value == "POU" ||
-                o.Attribute("ObjectType")?.Value == "POU"));
-
-        foreach (var pouElement in pouElements)
-        {
-            var program = new ProgramInfo
-            {
-                Name = pouElement.Attribute("Name")?.Value ??
-                       pouElement.Element("Name")?.Value ?? "Unknown",
-                Type = DeterminePouType(pouElement),
-                Language = DeterminePouLanguage(pouElement),
-                Description = pouElement.Element("Declaration")?.Element("Comment")?.Value,
-                Routines = ParsePouMethods(pouElement),
-                LocalTags = ParsePouVariables(pouElement),
-                Properties = new Dictionary<string, string>()
-            };
-
-            // Extract GUID
-            var guid = pouElement.Attribute("Id")?.Value ??
-                      pouElement.Attribute("GUID")?.Value;
-            if (!string.IsNullOrEmpty(guid))
-            {
-                program.Properties["GUID"] = guid;
-            }
-
-            programs.Add(program);
-        }
-
-        // Parse DUTs
-        var dutElements = element.Descendants("DUT")
-            .Concat(element.Descendants("DataType"));
-
-        foreach (var dutElement in dutElements)
-        {
-            var dut = new ProgramInfo
-            {
-                Name = dutElement.Attribute("Name")?.Value ?? "Unknown",
-                Type = "DUT",
-                Language = "Declaration",
-                Description = dutElement.Element("Declaration")?.Element("Comment")?.Value,
-                Properties = new Dictionary<string, string>
-                {
-                    ["DataType"] = "true",
-                    ["DutType"] = dutElement.Attribute("Type")?.Value ?? "Structure"
-                }
-            };
-
-            programs.Add(dut);
-        }
-
-        // Parse GVLs
-        var gvlElements = element.Descendants("GVL")
-            .Concat(element.Descendants("GlobalVariableList"));
-
-        foreach (var gvlElement in gvlElements)
-        {
-            var gvl = new ProgramInfo
-            {
-                Name = gvlElement.Attribute("Name")?.Value ?? "GVL",
-                Type = "GVL",
-                Language = "Declaration",
-                LocalTags = ParseGvlVariables(gvlElement),
-                Properties = new Dictionary<string, string>
-                {
-                    ["GlobalVariableList"] = "true"
-                }
-            };
-
-            programs.Add(gvl);
-        }
-
-        return programs;
-    }
-
-    private string DeterminePouType(XElement pouElement)
-    {
-        var kind = pouElement.Attribute("Kind")?.Value ??
-                  pouElement.Attribute("PouType")?.Value ??
-                  pouElement.Element("Type")?.Value;
-
-        if (!string.IsNullOrEmpty(kind))
-        {
-            return kind switch
-            {
-                "0" => "Program",
-                "1" => "FunctionBlock",
-                "2" => "Function",
-                "PROGRAM" => "Program",
-                "FUNCTION_BLOCK" => "FunctionBlock",
-                "FUNCTION" => "Function",
-                _ => kind
-            };
-        }
-
-        // Try to determine from declaration
-        var declaration = pouElement.Element("Declaration")?.Value ?? "";
-        if (declaration.Contains("PROGRAM", StringComparison.OrdinalIgnoreCase))
-            return "Program";
-        if (declaration.Contains("FUNCTION_BLOCK", StringComparison.OrdinalIgnoreCase))
-            return "Function Block";
-        if (declaration.Contains("FUNCTION", StringComparison.OrdinalIgnoreCase))
-            return "Function";
-
-        return "Program";
-    }
-
-    private string DeterminePouLanguage(XElement pouElement)
-    {
-        var implementation = pouElement.Element("Implementation");
-        if (implementation != null)
-        {
-            var language = implementation.Attribute("Language")?.Value;
-            if (!string.IsNullOrEmpty(language))
-                return language;
-
-            // Check for ST content
-            var stElement = implementation.Element("ST");
-            if (stElement != null)
-                return "ST";
-
-            // Check for declaration-only
-            if (implementation.Elements().Count() == 0)
-                return "Declaration";
-        }
-
-        // Default for TwinCAT
-        return "ST";
-    }
-
-    private IReadOnlyList<RoutineInfo> ParsePouMethods(XElement pouElement)
-    {
-        var routines = new List<RoutineInfo>();
-
-        // Main implementation
-        var implementation = pouElement.Element("Implementation");
-        if (implementation != null && implementation.Element("ST") != null)
-        {
-            var mainRoutine = new RoutineInfo
-            {
-                Name = "Main",
-                Type = "Main",
-                Language = "ST",
-                ProgramName = pouElement.Attribute("Name")?.Value
-            };
-            routines.Add(mainRoutine);
-        }
-
-        // Parse methods
-        var methods = pouElement.Descendants("Method");
-        foreach (var method in methods)
-        {
-            var routine = new RoutineInfo
-            {
-                Name = method.Attribute("Name")?.Value ?? "Method",
-                Type = "Method",
-                Language = DeterminePouLanguage(method),
-                ProgramName = pouElement.Attribute("Name")?.Value,
-                Description = method.Element("Declaration")?.Element("Comment")?.Value
-            };
-            routines.Add(routine);
-        }
-
-        // Parse properties
-        var properties = pouElement.Descendants("Property");
-        foreach (var property in properties)
-        {
-            var routine = new RoutineInfo
-            {
-                Name = property.Attribute("Name")?.Value ?? "Property",
-                Type = "Property",
-                Language = "ST",
-                ProgramName = pouElement.Attribute("Name")?.Value
-            };
-            routines.Add(routine);
-        }
-
-        // Parse actions
-        var actions = pouElement.Descendants("Action");
-        foreach (var action in actions)
-        {
-            var routine = new RoutineInfo
-            {
-                Name = action.Attribute("Name")?.Value ?? "Action",
-                Type = "Action",
-                Language = DeterminePouLanguage(action),
-                ProgramName = pouElement.Attribute("Name")?.Value
-            };
-            routines.Add(routine);
-        }
-
-        return routines;
-    }
-
-    private IReadOnlyList<TagInfo> ParsePouVariables(XElement pouElement)
-    {
-        var tags = new List<TagInfo>();
-
-        var declaration = pouElement.Element("Declaration");
-        if (declaration != null)
-        {
-            var declarationText = declaration.Value;
-            tags.AddRange(ParseDeclarationText(declarationText, pouElement.Attribute("Name")?.Value ?? ""));
-        }
-
-        return tags;
-    }
-
-    private IReadOnlyList<TagInfo> ParseGvlVariables(XElement gvlElement)
-    {
-        var tags = new List<TagInfo>();
-
-        var declaration = gvlElement.Element("Declaration");
-        if (declaration != null)
-        {
-            var declarationText = declaration.Value;
-            tags.AddRange(ParseDeclarationText(declarationText, "Global"));
-        }
-
-        return tags;
-    }
-
-    private static readonly Regex VarSectionHeader = new(
-        @"^VAR(?<kind>_INPUT|_OUTPUT|_IN_OUT|_GLOBAL|_TEMP|_STAT|_INST|_EXTERNAL|_CONFIG)?(?<quals>(\s+(CONSTANT|RETAIN|PERSISTENT|NON_RETAIN))*)\s*$",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
-
-    private static readonly Regex EndVar = new(
-        @"^END_VAR\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
-
-    /// <summary>
-    /// Resolves a project-relative reference (TwinCAT writes Windows separators) and
-    /// rejects anything that escapes the project directory, such as "../x" or rooted paths.
-    /// </summary>
-    internal static string? ResolveProjectReference(string projectDir, string reference)
-    {
-        var normalized = reference.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
-        if (Path.IsPathRooted(normalized))
-            return null;
-
-        var root = Path.GetFullPath(projectDir);
-        var full = Path.GetFullPath(Path.Combine(root, normalized));
-        var rootWithSep = root.EndsWith(Path.DirectorySeparatorChar) ? root : root + Path.DirectorySeparatorChar;
-        return full.StartsWith(rootWithSep, StringComparison.Ordinal) ? full : null;
-    }
-
-    internal static List<TagInfo> ParseDeclarationText(string declarationText, string scope)
-    {
-        var tags = new List<TagInfo>();
-        var cleaned = StripCommentsAndPragmas(declarationText);
-        string currentSection = "";
-        var pending = new System.Text.StringBuilder();
-
-        foreach (var rawLine in cleaned.Split('\n'))
-        {
-            var trimmed = rawLine.Trim();
-            if (trimmed.Length == 0)
-                continue;
-
-            var header = VarSectionHeader.Match(trimmed);
-            if (header.Success)
-            {
-                var kind = header.Groups["kind"].Value.ToUpperInvariant();
-                var persistent = header.Groups["quals"].Value.Contains("PERSISTENT", StringComparison.OrdinalIgnoreCase);
-                currentSection = kind.Length > 0 ? "VAR" + kind : persistent ? "VAR_PERSISTENT" : "VAR";
-                pending.Clear();
+                merged.Add(plcTask);
                 continue;
             }
 
-            if (EndVar.IsMatch(trimmed))
-            {
-                currentSection = "";
-                pending.Clear();
-                continue;
-            }
-
-            if (currentSection.Length == 0)
-                continue;
-
-            // Declarations may span lines; complete statements end with ';'.
-            pending.Append(trimmed).Append(' ');
-            foreach (var statement in TakeCompleteStatements(pending))
-            {
-                tags.AddRange(ParseDeclarationStatement(statement, currentSection, scope));
-            }
+            existing.ProgramNames = existing.ProgramNames.Concat(plcTask.ProgramNames).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            existing.Rate ??= plcTask.Rate;
+            foreach (var (key, value) in plcTask.Properties)
+                existing.Properties.TryAdd(key, value);
         }
-
-        return tags;
+        return merged;
     }
 
-    private static IEnumerable<TagInfo> ParseDeclarationStatement(string statement, string section, string scope)
+    private static void AssignProgramsToTasks(IEnumerable<TaskInfo> tasks, IEnumerable<ProgramInfo> programs)
     {
-        var colonIndex = IndexOutsideStrings(statement, ':', skipAssign: true);
-        if (colonIndex <= 0)
-            yield break;
-
-        var namePart = statement[..colonIndex].Trim();
-        var typePart = statement[(colonIndex + 1)..].Trim();
-
-        string? initialValue = null;
-        var assignIndex = typePart.IndexOf(":=", StringComparison.Ordinal);
-        if (assignIndex >= 0)
+        var byName = programs.GroupBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+        foreach (var task in tasks)
         {
-            initialValue = typePart[(assignIndex + 2)..].Trim();
-            typePart = typePart[..assignIndex].Trim();
-        }
-
-        // Direct address: "bIn AT %IX0.0 : BOOL"
-        string? address = null;
-        var atMatch = Regex.Match(namePart, @"\s+AT\s+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-        if (atMatch.Success)
-        {
-            address = namePart[(atMatch.Index + atMatch.Length)..].Trim();
-            namePart = namePart[..atMatch.Index].Trim();
-        }
-
-        var usage = section switch
-        {
-            "VAR_INPUT" => "Input",
-            "VAR_OUTPUT" => "Output",
-            "VAR_IN_OUT" => "InOut",
-            _ => section
-        };
-
-        // "a, b, c : BOOL;" declares three variables.
-        foreach (var name in namePart.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            yield return new TagInfo
+            foreach (var programName in task.ProgramNames)
             {
-                Name = name,
-                DataType = typePart,
-                Scope = scope,
-                Usage = usage,
-                InitialValue = initialValue,
-                Address = address,
-                IsIoTag = address?.StartsWith("%I", StringComparison.OrdinalIgnoreCase) == true ||
-                          address?.StartsWith("%Q", StringComparison.OrdinalIgnoreCase) == true
-            };
-        }
-    }
-
-    /// <summary>
-    /// Removes (* *) and // comments and {pragmas} that are outside string literals,
-    /// keeping newlines so line structure survives.
-    /// </summary>
-    internal static string StripCommentsAndPragmas(string text)
-    {
-        var sb = new System.Text.StringBuilder(text.Length);
-        int i = 0;
-        while (i < text.Length)
-        {
-            var c = text[i];
-            var next = i + 1 < text.Length ? text[i + 1] : '\0';
-
-            if (c == '\'' || c == '"')
-            {
-                // Copy string literal verbatim ('' / $' escapes keep us inside it).
-                var quote = c;
-                sb.Append(c);
-                i++;
-                while (i < text.Length)
-                {
-                    var sc = text[i];
-                    sb.Append(sc);
-                    i++;
-                    if (sc == '$' && i < text.Length) { sb.Append(text[i]); i++; continue; }
-                    if (sc == quote) break;
-                }
-                continue;
-            }
-
-            if (c == '(' && next == '*')
-            {
-                var end = text.IndexOf("*)", i + 2, StringComparison.Ordinal);
-                var stop = end < 0 ? text.Length : end + 2;
-                AppendNewlines(sb, text, i, stop);
-                i = stop;
-                continue;
-            }
-
-            if (c == '/' && next == '/')
-            {
-                while (i < text.Length && text[i] != '\n') i++;
-                continue;
-            }
-
-            if (c == '{')
-            {
-                var end = text.IndexOf('}', i + 1);
-                var stop = end < 0 ? text.Length : end + 1;
-                AppendNewlines(sb, text, i, stop);
-                i = stop;
-                continue;
-            }
-
-            sb.Append(c);
-            i++;
-        }
-        return sb.ToString();
-
-        static void AppendNewlines(System.Text.StringBuilder sb, string text, int from, int to)
-        {
-            for (int k = from; k < to; k++)
-                if (text[k] == '\n') sb.Append('\n');
-        }
-    }
-
-    // Splits off every ';'-terminated statement (outside strings) and leaves the remainder buffered.
-    private static IEnumerable<string> TakeCompleteStatements(System.Text.StringBuilder buffer)
-    {
-        var text = buffer.ToString();
-        var results = new List<string>();
-        int start = 0;
-        int idx;
-        while ((idx = IndexOutsideStrings(text, ';', skipAssign: false, start)) >= 0)
-        {
-            var stmt = text[start..idx].Trim();
-            if (stmt.Length > 0) results.Add(stmt);
-            start = idx + 1;
-        }
-        buffer.Clear().Append(text[start..]);
-        return results;
-    }
-
-    private static int IndexOutsideStrings(string text, char target, bool skipAssign, int start = 0)
-    {
-        char quote = '\0';
-        for (int i = start; i < text.Length; i++)
-        {
-            var c = text[i];
-            if (quote != '\0')
-            {
-                if (c == '$') { i++; continue; }
-                if (c == quote) quote = '\0';
-                continue;
-            }
-            if (c == '\'' || c == '"') { quote = c; continue; }
-            if (c == target)
-            {
-                if (skipAssign && i + 1 < text.Length && text[i + 1] == '=')
+                if (!byName.TryGetValue(programName, out var matches))
                     continue;
-                return i;
+                foreach (var program in matches)
+                    program.TaskName ??= task.Name;
             }
         }
-        return -1;
     }
 
-    private IEnumerable<ProgramInfo> ParsePousDirectly(IEnumerable<XElement> pous)
-    {
-        var programs = new List<ProgramInfo>();
+    // ---- I/O ----
 
-        foreach (var pou in pous)
-        {
-            var program = new ProgramInfo
-            {
-                Name = pou.Attribute("Name")?.Value ?? "Unknown",
-                Type = DeterminePouType(pou),
-                Language = DeterminePouLanguage(pou),
-                LocalTags = ParsePouVariables(pou),
-                Properties = new Dictionary<string, string>
-                {
-                    ["Id"] = pou.Attribute("Id")?.Value ?? "",
-                    ["SpecialFunc"] = pou.Attribute("SpecialFunc")?.Value ?? ""
-                }
-            };
-
-            programs.Add(program);
-        }
-
-        return programs;
-    }
-
-    private IReadOnlyList<TagInfo> ParseGlobalVariables(XElement root)
-    {
-        var globalTags = new List<TagInfo>();
-
-        // Find GVLs in the project
-        var gvlElements = root.Descendants("GVL")
-            .Concat(root.Descendants("GlobalVariableList"));
-
-        foreach (var gvlElement in gvlElements)
-        {
-            var gvlName = gvlElement.Attribute("Name")?.Value ?? "Global";
-            var variables = ParseGvlVariables(gvlElement);
-
-            foreach (var variable in variables)
-            {
-                // Update scope to include GVL name
-                globalTags.Add(variable with { Scope = gvlName });
-            }
-        }
-
-        return globalTags;
-    }
-
-    private IReadOnlyList<IoModuleInfo> ParseIoConfiguration(XElement root)
+    private static List<IoModuleInfo> ParseIoTree(XElement? projectElement, ParseContext context)
     {
         var modules = new List<IoModuleInfo>();
-
-        // Find I/O devices
-        var deviceElements = root.Descendants("Device")
-            .Concat(root.Descendants("Box"))
-            .Concat(root.Descendants("Term"))
-            .Concat(root.Descendants("Module"));
-
-        foreach (var deviceElement in deviceElements)
+        foreach (var deviceReference in projectElement?.Element("Io")?.Elements("Device") ?? Enumerable.Empty<XElement>())
         {
-            var deviceType = deviceElement.Attribute("Type")?.Value ??
-                           deviceElement.Attribute("DeviceType")?.Value;
+            var (device, _) = ResolveXtiReference(deviceReference, "IO", context);
+            if (device == null)
+                continue;
 
-            if (!string.IsNullOrEmpty(deviceType) && IsIoDevice(deviceType))
+            var name = device.Element("Name")?.Value ?? device.Attribute("RemoteName")?.Value ?? $"Device {device.Attribute("Id")?.Value}";
+            var isEtherCat = device.Element("EtherCAT") != null || device.Attribute("DevType")?.Value == "111";
+            var module = new IoModuleInfo
             {
-                var module = new IoModuleInfo
-                {
-                    Name = deviceElement.Attribute("Name")?.Value ?? deviceType,
-                    Type = DetermineIoModuleType(deviceType),
-                    CatalogNumber = deviceType,
-                    Vendor = "Beckhoff",
-                    Location = deviceElement.Attribute("Id")?.Value,
-                    Properties = new Dictionary<string, string>()
-                };
+                Name = name,
+                Type = isEtherCat ? "EtherCAT Master" : "I/O Device",
+                Location = name,
+                CommFormat = isEtherCat ? "EtherCAT" : null,
+                Properties = new Dictionary<string, string>()
+            };
+            AddIfPresent(module.Properties, "Id", device.Attribute("Id")?.Value);
+            AddIfPresent(module.Properties, "DevType", device.Attribute("DevType")?.Value);
+            AddIfPresent(module.Properties, "AmsNetId", device.Attribute("AmsNetId")?.Value);
+            modules.Add(module);
 
-                // Extract revision
-                var revision = deviceElement.Attribute("Revision")?.Value;
-                if (!string.IsNullOrEmpty(revision))
-                {
-                    module.Properties["Revision"] = revision;
-                }
-
-                // Count channels
-                var channels = deviceElement.Descendants("Channel").Count();
-                if (channels > 0)
-                {
-                    module.ChannelCount = channels;
-                }
-
-                // Extract configuration
-                var configElements = deviceElement.Elements("Parameter");
-                foreach (var config in configElements)
-                {
-                    var name = config.Attribute("Name")?.Value;
-                    var value = config.Attribute("Value")?.Value ?? config.Value;
-                    if (!string.IsNullOrEmpty(name))
-                    {
-                        module.Configuration[name] = value;
-                    }
-                }
-
-                modules.Add(module);
-            }
+            foreach (var box in device.Elements("Box"))
+                ParseBox(box, name, name, modules, context);
         }
-
-        // Parse EtherCAT configuration
-        var etherCatElements = root.Descendants("EtherCAT");
-        foreach (var etherCat in etherCatElements)
-        {
-            var slaves = etherCat.Descendants("Slave");
-            foreach (var slave in slaves)
-            {
-                var module = new IoModuleInfo
-                {
-                    Name = slave.Attribute("Name")?.Value ?? "EtherCAT Slave",
-                    Type = "EtherCAT Device",
-                    CatalogNumber = slave.Attribute("ProductCode")?.Value ?? "",
-                    Vendor = slave.Attribute("Vendor")?.Value ?? "Unknown",
-                    Location = $"Position {slave.Attribute("PhysAddr")?.Value ?? "?"}",
-                    Properties = new Dictionary<string, string>
-                    {
-                        ["RevisionNo"] = slave.Attribute("RevisionNo")?.Value ?? ""
-                    }
-                };
-
-                modules.Add(module);
-            }
-        }
-
         return modules;
     }
 
-    private bool IsIoDevice(string deviceType)
+    // EtherCAT terminals are nested <Box> elements that follow the topology; there is no <Term> element.
+    private static void ParseBox(XElement boxReference, string parentName, string parentPath, List<IoModuleInfo> modules, ParseContext context)
     {
-        var ioKeywords = new[]
-        {
-            "EL", "KL", "EP", "EK", "ES", "EJ",  // EtherCAT/K-bus terminals
-            "Input", "Output", "I/O", "IO",
-            "DI", "DO", "AI", "AO",
-            "Encoder", "Drive", "Servo", "Motion"
-        };
+        var (box, _) = ResolveXtiReference(boxReference, "IO", context);
+        if (box == null)
+            return;
 
-        return ioKeywords.Any(kw => deviceType.Contains(kw, StringComparison.OrdinalIgnoreCase));
+        var name = box.Element("Name")?.Value ?? $"Box {box.Attribute("Id")?.Value}";
+        var path = $"{parentPath}^{name}";
+        var etherCat = box.Element("EtherCAT");
+
+        var catalog = etherCat?.Attribute("Desc")?.Value;
+        if (string.IsNullOrEmpty(catalog))
+        {
+            // Default display names look like "Term 2 (EL1004)".
+            var open = name.LastIndexOf('(');
+            if (open >= 0 && name.EndsWith(')'))
+                catalog = name[(open + 1)..^1];
+        }
+
+        var channels = etherCat?.Elements("Pdo")
+            .Select(p => ChannelName.Match(p.Attribute("Name")?.Value ?? ""))
+            .Where(m => m.Success)
+            .Select(m => m.Groups[1].Value)
+            .Distinct()
+            .Count() ?? 0;
+
+        var vendorId = etherCat?.Attribute("VendorId")?.Value;
+        var module = new IoModuleInfo
+        {
+            Name = name,
+            Type = string.IsNullOrEmpty(catalog) ? "I/O Module" : DetermineIoModuleType(catalog),
+            CatalogNumber = catalog,
+            Vendor = vendorId == null ? null : IsBeckhoffVendor(vendorId) ? "Beckhoff" : $"VendorId {vendorId}",
+            Location = path,
+            ChannelCount = channels,
+            CommFormat = etherCat != null ? "EtherCAT" : null,
+            ParentModule = parentName,
+            Properties = new Dictionary<string, string>()
+        };
+        AddIfPresent(module.Properties, "Id", box.Attribute("Id")?.Value);
+        AddIfPresent(module.Properties, "BoxType", box.Attribute("BoxType")?.Value);
+        AddIfPresent(module.Properties, "Description", etherCat?.Attribute("Type")?.Value);
+        AddIfPresent(module.Properties, "VendorId", vendorId);
+        AddIfPresent(module.Properties, "ProductCode", etherCat?.Attribute("ProductCode")?.Value);
+        AddIfPresent(module.Properties, "RevisionNo", etherCat?.Attribute("RevisionNo")?.Value);
+        AddIfPresent(module.Properties, "EtherCatAddr", etherCat?.Attribute("EtherCatAddr")?.Value);
+        modules.Add(module);
+
+        foreach (var child in box.Elements("Box"))
+            ParseBox(child, name, path, modules, context);
     }
 
-    private string DetermineIoModuleType(string deviceType)
+    private static bool IsBeckhoffVendor(string vendorId) =>
+        vendorId.StartsWith("#x", StringComparison.OrdinalIgnoreCase) &&
+        long.TryParse(vendorId[2..], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var id) && id == 2;
+
+    /// <summary>
+    /// Applies Mappings/OwnerA/OwnerB/Link: links between a PLC instance ("TIPC^...") and an I/O
+    /// item ("TIID^..."). The linked PLC symbol is added to the module's AssociatedTags and the
+    /// declaring tag is marked as an I/O tag. Returns the number of PLC-to-I/O links.
+    /// </summary>
+    private static int ApplyIoMappings(XElement root, List<IoModuleInfo> modules, ParseContext context)
     {
-        var upper = deviceType.ToUpper();
+        var byPath = modules.Where(m => m.Location != null).GroupBy(m => m.Location!, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+        var associated = new Dictionary<IoModuleInfo, List<string>>(ReferenceEqualityComparer.Instance);
+        foreach (var m in modules)
+            associated[m] = new List<string>();
+        var count = 0;
 
-        // Beckhoff terminal types
-        if (upper.StartsWith("EL1") || upper.StartsWith("KL1") || upper.StartsWith("EP1"))
-            return "Digital Input";
-        if (upper.StartsWith("EL2") || upper.StartsWith("KL2") || upper.StartsWith("EP2"))
-            return "Digital Output";
-        if (upper.StartsWith("EL3") || upper.StartsWith("KL3") || upper.StartsWith("EP3"))
-            return "Analog Input";
-        if (upper.StartsWith("EL4") || upper.StartsWith("KL4") || upper.StartsWith("EP4"))
-            return "Analog Output";
-        if (upper.StartsWith("EL5") || upper.StartsWith("KL5"))
-            return "Position Measurement";
-        if (upper.StartsWith("EL6") || upper.StartsWith("KL6") || upper.StartsWith("EP6"))
-            return "Communication";
-        if (upper.StartsWith("EL7") || upper.StartsWith("EP7"))
-            return "Drive Technology";
-        if (upper.StartsWith("EL9") || upper.StartsWith("KL9"))
-            return "System Terminal";
+        foreach (var ownerA in root.Element("Mappings")?.Elements("OwnerA") ?? Enumerable.Empty<XElement>())
+        {
+            var nameA = ownerA.Attribute("Name")?.Value ?? "";
+            foreach (var ownerB in ownerA.Elements("OwnerB"))
+            {
+                var nameB = ownerB.Attribute("Name")?.Value ?? "";
+                bool plcIsA;
+                if (nameA.StartsWith("TIPC^", StringComparison.Ordinal) && nameB.StartsWith("TIID^", StringComparison.Ordinal))
+                    plcIsA = true;
+                else if (nameA.StartsWith("TIID^", StringComparison.Ordinal) && nameB.StartsWith("TIPC^", StringComparison.Ordinal))
+                    plcIsA = false;
+                else
+                    continue;
 
-        // Generic types
-        if (upper.Contains("DIGITAL") && upper.Contains("INPUT")) return "Digital Input";
-        if (upper.Contains("DIGITAL") && upper.Contains("OUTPUT")) return "Digital Output";
-        if (upper.Contains("ANALOG") && upper.Contains("INPUT")) return "Analog Input";
-        if (upper.Contains("ANALOG") && upper.Contains("OUTPUT")) return "Analog Output";
-        if (upper.Contains("ENCODER")) return "Encoder";
-        if (upper.Contains("DRIVE") || upper.Contains("SERVO")) return "Drive";
-        if (upper.Contains("SAFETY")) return "Safety I/O";
+                var ioOwner = (plcIsA ? nameB : nameA)["TIID^".Length..];
+                var plcOwner = (plcIsA ? nameA : nameB)["TIPC^".Length..];
+                var plcProject = plcOwner.Split('^')[0];
+                var module = FindModule(byPath, ioOwner);
 
+                foreach (var link in ownerB.Elements("Link"))
+                {
+                    var plcVar = (plcIsA ? link.Attribute("VarA") : link.Attribute("VarB"))?.Value;
+                    if (string.IsNullOrEmpty(plcVar))
+                        continue;
+
+                    // "PlcTask Inputs^MAIN.stRack.ST_In^Input1": the first segment is the process image.
+                    var segments = plcVar.Split('^');
+                    var symbol = string.Join(".", segments.Length > 1 ? segments[1..] : segments);
+                    count++;
+                    if (module == null)
+                        continue;
+
+                    associated[module].Add(symbol);
+                    MarkLinkedTag(symbol, plcProject, module.Name, context);
+                }
+            }
+        }
+
+        foreach (var (module, tags) in associated)
+            if (tags.Count > 0)
+                module.AssociatedTags = tags.Distinct(StringComparer.Ordinal).ToList();
+        return count;
+    }
+
+    private static IoModuleInfo? FindModule(Dictionary<string, IoModuleInfo> byPath, string ioPath)
+    {
+        var path = ioPath;
+        while (true)
+        {
+            if (byPath.TryGetValue(path, out var module))
+                return module;
+            var cut = path.LastIndexOf('^');
+            if (cut <= 0)
+                return null;
+            path = path[..cut];
+        }
+    }
+
+    private static void MarkLinkedTag(string symbol, string plcProject, string moduleName, ParseContext context)
+    {
+        // "GVL_IO.arrIds[2]" → scope GVL_IO, tag arrIds; "MAIN.fb.x" → POU MAIN, local fb.
+        var parts = symbol.Split('.');
+        if (parts.Length < 2)
+            return;
+        var scope = parts[0];
+        var tagName = parts[1].Split('[')[0];
+
+        bool Matches(TagInfo t) =>
+            string.Equals(t.Scope, scope, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(t.Name, tagName, StringComparison.OrdinalIgnoreCase) &&
+            (!t.Properties.TryGetValue("PlcProject", out var p) || string.Equals(p, plcProject, StringComparison.OrdinalIgnoreCase));
+
+        foreach (var tag in context.Tags.Where(Matches).Concat(context.Programs.SelectMany(p => p.LocalTags).Where(Matches)))
+        {
+            tag.IsIoTag = true;
+            tag.IoModule ??= moduleName;
+        }
+    }
+
+    private static string DetermineIoModuleType(string catalog)
+    {
+        var upper = catalog.ToUpperInvariant();
+        bool Starts(params string[] prefixes) => prefixes.Any(p => upper.StartsWith(p, StringComparison.Ordinal));
+
+        if (Starts("EK", "BK")) return "Coupler";
+        if (Starts("EL1", "KL1", "EP1", "ES1")) return "Digital Input";
+        if (Starts("EL2", "KL2", "EP2", "ES2")) return "Digital Output";
+        if (Starts("EL3", "KL3", "EP3", "ES3")) return "Analog Input";
+        if (Starts("EL4", "KL4", "EP4", "ES4")) return "Analog Output";
+        if (Starts("EL5", "KL5")) return "Position Measurement";
+        if (Starts("EL6", "KL6", "EP6")) return "Communication";
+        if (Starts("EL7", "EP7")) return "Drive Technology";
+        if (Starts("EL9", "KL9")) return "System Terminal";
         return "I/O Module";
+    }
+
+    // ---- Shared helpers ----
+
+    /// <summary>
+    /// Follows an "Independent Project File" reference such as &lt;Project File="X.xti"/&gt;.
+    /// The .xti lives under _Config/&lt;section&gt;/ (e.g. _Config/PLC/TcUnit.xti in tcunit/TcUnit).
+    /// Returns the element to read and the directory its relative paths are based on.
+    /// </summary>
+    private static (XElement? Element, string BaseDir) ResolveXtiReference(XElement element, string section, ParseContext context)
+    {
+        var file = element.Attribute("File")?.Value;
+        if (string.IsNullOrEmpty(file))
+            return (element, context.RootDir);
+
+        var configDir = Path.Combine(context.RootDir, "_Config");
+        var candidate = ResolveProjectReference(context.RootDir, Path.Combine(configDir, section), file);
+        if (candidate != null && !File.Exists(candidate) && Directory.Exists(configDir) && Path.GetFileName(file) == file)
+        {
+            // Nested items (e.g. boxes) are stored in subfolders named after their parent.
+            candidate = Directory.EnumerateFiles(configDir, file, SearchOption.AllDirectories).FirstOrDefault() ?? candidate;
+        }
+
+        if (candidate == null)
+        {
+            context.Warn($"Project file '{file}' was skipped because it points outside the project directory.");
+            return (null, context.RootDir);
+        }
+        if (!File.Exists(candidate))
+        {
+            context.Warn($"Project file '{file}' was not found under _Config/{section}.");
+            return (null, context.RootDir);
+        }
+
+        try
+        {
+            var inner = LoadXml(candidate).Root?.Element(element.Name);
+            if (inner == null)
+            {
+                context.Warn($"Project file '{context.Relative(candidate)}' has no <{element.Name.LocalName}> element.");
+                return (null, context.RootDir);
+            }
+            return (inner, Path.GetDirectoryName(candidate) ?? context.RootDir);
+        }
+        catch (Exception ex) when (ex is XmlException or IOException or InvalidDataException)
+        {
+            context.Warn($"Project file '{context.Relative(candidate)}' could not be read: {ex.Message}");
+            return (null, context.RootDir);
+        }
+    }
+
+    /// <summary>Loads XML without DTD processing or external resolution, and with a size limit.</summary>
+    private static XDocument LoadXml(string path)
+    {
+        var info = new FileInfo(path);
+        if (info.Length > MaxFileBytes)
+            throw new InvalidDataException($"The file is larger than {MaxFileBytes / (1024 * 1024)} MB.");
+
+        var settings = new XmlReaderSettings
+        {
+            DtdProcessing = DtdProcessing.Prohibit,
+            XmlResolver = null
+        };
+        using var stream = File.OpenRead(path);
+        using var reader = XmlReader.Create(stream, settings);
+        return XDocument.Load(reader);
+    }
+
+    private static bool IsZipFile(string path)
+    {
+        try
+        {
+            using var stream = File.OpenRead(path);
+            Span<byte> header = stackalloc byte[4];
+            return stream.Read(header) == 4 && header[0] == 'P' && header[1] == 'K' && header[2] == 3 && header[3] == 4;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+    }
+
+    private static void AddIfPresent(Dictionary<string, string> properties, string key, string? value)
+    {
+        if (!string.IsNullOrEmpty(value))
+            properties[key] = value;
+    }
+
+    /// <summary>Accumulates everything read from a project and its referenced files.</summary>
+    private sealed class ParseContext
+    {
+        public ParseContext(string rootDir) => RootDir = Path.GetFullPath(rootDir);
+
+        /// <summary>No referenced file may resolve outside this directory.</summary>
+        public string RootDir { get; }
+        public List<ProgramInfo> Programs { get; } = new();
+        public List<TagInfo> Tags { get; } = new();
+        public List<DataTypeInfo> DataTypes { get; } = new();
+        public List<TaskInfo> Tasks { get; } = new();
+        public List<string> Libraries { get; } = new();
+        public List<string> Warnings { get; } = new();
+
+        public void Warn(string message) => Warnings.Add(message);
+
+        public string Relative(string path) => Path.GetRelativePath(RootDir, path);
     }
 }

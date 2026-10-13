@@ -182,7 +182,7 @@ public class EndToEndTests : IDisposable
         {
             ("test.L5X", "Rockwell Automation"),
             ("test.export", "CODESYS"),
-            ("test.tpy", "Beckhoff"),
+            ("test.tsproj", "Beckhoff"),
             ("test.ap17", "Siemens"),
             ("test.s7p", "Siemens")
         };
@@ -197,7 +197,12 @@ public class EndToEndTests : IDisposable
             // Create a minimal file for testing
             var testFile = Path.Combine(_tempDirectory, filename);
 
-            if (filename.EndsWith(".L5X") || filename.EndsWith(".export") || filename.EndsWith(".tpy"))
+            if (filename.EndsWith(".tsproj"))
+            {
+                // TwinCAT rejects XML that is not a TwinCAT project instead of returning an empty one.
+                await File.WriteAllTextAsync(testFile, "<?xml version='1.0'?><TcSmProject/>");
+            }
+            else if (filename.EndsWith(".L5X") || filename.EndsWith(".export"))
             {
                 await File.WriteAllTextAsync(testFile, "<?xml version='1.0'?><root/>");
             }
