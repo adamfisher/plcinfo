@@ -6,7 +6,7 @@ namespace PlcInfo.Services;
 /// <summary>
 /// Service for comparing PLC projects.
 /// </summary>
-public class PlcDiffService
+public partial class PlcDiffService
 {
     /// <summary>
     /// Compares two PLC projects and returns detailed differences.
@@ -35,6 +35,9 @@ public class PlcDiffService
 
         // Compare I/O modules
         CompareIoModules(project1.IoModules, project2.IoModules, details);
+
+        // Compare user-defined data types
+        CompareDataTypes(project1.DataTypes, project2.DataTypes, details);
 
         // Compare metadata
         CompareMetadata(project1.Metadata, project2.Metadata, details);
@@ -79,7 +82,8 @@ public class PlcDiffService
             });
         }
 
-        if (p1.LastModified != p2.LastModified)
+        // File timestamps are compared at one-second resolution, as displayed.
+        if (TruncateToSeconds(p1.LastModified) != TruncateToSeconds(p2.LastModified))
         {
             details.Add(new DiffDetail
             {
@@ -184,8 +188,8 @@ public class PlcDiffService
             {
                 AddIfChanged(details, location, "Type", $"Program '{name}' type changed", program1.Type, program2.Type);
                 AddIfChanged(details, location, "Language", $"Program '{name}' language changed", program1.Language, program2.Language);
-                AddIfChanged(details, location, "Routines", $"Program '{name}' routine count changed",
-                    Invariant(program1.Routines.Count), Invariant(program2.Routines.Count));
+                // Routines are compared individually (added, removed, logic changes).
+                CompareRoutines(program1.Routines, program2.Routines, details, $"{location}.Routines");
 
                 // Program-scoped tags are compared individually, not just counted.
                 CompareTags(program1.LocalTags, program2.LocalTags, details, $"{location}.Tags");
@@ -201,6 +205,8 @@ public class PlcDiffService
             {
                 AddIfChanged(details, location, "Type", $"Block '{name}' type changed", block1.Type, block2.Type);
                 AddIfChanged(details, location, "Language", $"Block '{name}' language changed", block1.Language, block2.Language);
+                CompareNetworks(block1.Networks, block2.Networks, details, location, $"Block '{name}'");
+                CompareSource(block1.Source, block2.Source, details, location, $"Block '{name}'");
             });
     }
 
@@ -268,7 +274,8 @@ public class PlcDiffService
         string noun,
         Func<T, string> describe,
         List<DiffDetail> details,
-        Action<string, string, T, T> compareMatched)
+        Action<string, string, T, T> compareMatched,
+        string category = Categories.Project)
     {
         var duplicateNames = items1.GroupBy(nameOf).Where(g => g.Count() > 1).Select(g => g.Key)
             .Concat(items2.GroupBy(nameOf).Where(g => g.Count() > 1).Select(g => g.Key))
@@ -284,6 +291,7 @@ public class PlcDiffService
             details.Add(new DiffDetail
             {
                 Type = "Added",
+                Category = category,
                 Location = $"{section}.{key}",
                 Message = $"{noun} '{name}' added",
                 Value2 = describe(item)
@@ -297,6 +305,7 @@ public class PlcDiffService
             details.Add(new DiffDetail
             {
                 Type = "Removed",
+                Category = category,
                 Location = $"{section}.{key}",
                 Message = $"{noun} '{name}' removed",
                 Value1 = describe(item)
@@ -353,18 +362,22 @@ public class PlcDiffService
     }
 
     private static void AddIfChanged(List<DiffDetail> details, string location, string field, string message,
-        string? value1, string? value2)
+        string? value1, string? value2, string category = Categories.Project)
     {
         if (value1 == value2) return;
         details.Add(new DiffDetail
         {
             Type = "Modified",
+            Category = category,
             Location = $"{location}.{field}",
             Message = message,
             Value1 = value1,
             Value2 = value2
         });
     }
+
+    private static DateTime? TruncateToSeconds(DateTime? value) =>
+        value.HasValue ? value.Value.AddTicks(-(value.Value.Ticks % TimeSpan.TicksPerSecond)) : null;
 
     private static string Invariant(int value) => value.ToString(CultureInfo.InvariantCulture);
 
@@ -482,6 +495,12 @@ public class DiffDetail
     /// Type of difference (Added, Removed, Modified, Info).
     /// </summary>
     public string Type { get; set; } = string.Empty;
+
+    /// <summary>
+    /// What the difference is about: Project (configuration, tags, I/O), Logic
+    /// (routines, rungs, source, networks) or DataType.
+    /// </summary>
+    public string Category { get; set; } = PlcDiffService.Categories.Project;
 
     /// <summary>
     /// Description of the difference.

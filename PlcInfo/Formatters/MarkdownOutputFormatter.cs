@@ -431,6 +431,23 @@ public class MarkdownOutputFormatter : IOutputFormatter
         {
             // Include where and what changed, not just the message.
             var line = $"- **{detail.Type}** `{detail.Location}`: {detail.Message}";
+            if (detail.Category == Services.PlcDiffService.Categories.Logic)
+            {
+                // Logic changes can be long or multi-line: show them as a diff block.
+                sb.AppendLine(line);
+                if (detail.Value1 != null || detail.Value2 != null)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("  ```diff");
+                    foreach (var old in SplitLines(detail.Value1))
+                        sb.AppendLine($"  - {old}");
+                    foreach (var @new in SplitLines(detail.Value2))
+                        sb.AppendLine($"  + {@new}");
+                    sb.AppendLine("  ```");
+                    sb.AppendLine();
+                }
+                continue;
+            }
             if (detail.Value1 != null || detail.Value2 != null)
                 line += $" (`{detail.Value1 ?? "(none)"}` → `{detail.Value2 ?? "(none)"}`)";
             sb.AppendLine(line);
@@ -492,4 +509,7 @@ public class MarkdownOutputFormatter : IOutputFormatter
             return string.Empty;
         return value.Replace("|", "\\|").Replace("\r\n", "<br>").Replace("\n", "<br>").Replace("\r", "<br>");
     }
+
+    private static IEnumerable<string> SplitLines(string? value) =>
+        string.IsNullOrEmpty(value) ? Enumerable.Empty<string>() : value.Replace("\r\n", "\n").Split('\n');
 }
