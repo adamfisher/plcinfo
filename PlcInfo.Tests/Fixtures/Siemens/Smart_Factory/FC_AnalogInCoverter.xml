@@ -1,0 +1,180 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Document>
+  <Engineering version="V18" />
+  <SW.Blocks.FC ID="0">
+    <AttributeList>
+      <AutoNumber>true</AutoNumber>
+      <HeaderAuthor />
+      <HeaderFamily />
+      <HeaderName />
+      <HeaderVersion>0.1</HeaderVersion>
+      <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+  <Section Name="Input">
+    <Member Name="in_AnalogData" Datatype="Int" Accessibility="Public" />
+    <Member Name="in_ScaleMax" Datatype="Real" Accessibility="Public" />
+    <Member Name="in_SacaleMin" Datatype="Real" Accessibility="Public" />
+  </Section>
+  <Section Name="Output">
+    <Member Name="out_AnalogData" Datatype="Real" Accessibility="Public" />
+  </Section>
+  <Section Name="InOut" />
+  <Section Name="Temp">
+    <Member Name="normData" Datatype="Real" />
+  </Section>
+  <Section Name="Constant" />
+  <Section Name="Return">
+    <Member Name="Ret_Val" Datatype="Void" Accessibility="Public" />
+  </Section>
+</Sections></Interface>
+      <MemoryLayout>Optimized</MemoryLayout>
+      <Name>FC_AnalogInCoverter</Name>
+      <Namespace />
+      <Number>7</Number>
+      <ProgrammingLanguage>STL</ProgrammingLanguage>
+      <UDABlockProperties />
+      <UDAEnableTagReadback>false</UDAEnableTagReadback>
+    </AttributeList>
+    <ObjectList>
+      <MultilingualText ID="1" CompositionName="Comment">
+        <ObjectList>
+          <MultilingualTextItem ID="2" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+      <SW.Blocks.CompileUnit ID="3" CompositionName="CompileUnits">
+        <AttributeList>
+          <NetworkSource><StatementList xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StatementList/v4">
+  <StlStatement UId="52">
+    <LineComment Inserted="false">
+      <Text>Conversor de entradas analogicas</Text>
+    </LineComment>
+    <StlToken Text="COMMENT" />
+  </StlStatement>
+  <StlStatement UId="29">
+    <StlToken Text="CALL" />
+    <Access Scope="Call">
+      <Instruction Name="NORM_X">
+        <TemplateValue Name="src_type" Type="Type">Int</TemplateValue>
+        <TemplateValue Name="dest_type" Type="Type">Real</TemplateValue>
+        <Parameter Name="MIN">
+          <Access Scope="LiteralConstant">
+            <Constant>
+              <ConstantType>Int</ConstantType>
+              <ConstantValue>0</ConstantValue>
+            </Constant>
+          </Access>
+        </Parameter>
+        <Parameter Name="VALUE">
+          <Access Scope="LocalVariable">
+            <Symbol>
+              <Component Name="in_AnalogData" />
+            </Symbol>
+          </Access>
+        </Parameter>
+        <Parameter Name="MAX">
+          <Access Scope="LiteralConstant">
+            <Constant>
+              <ConstantType>Int</ConstantType>
+              <ConstantValue>27468</ConstantValue>
+            </Constant>
+          </Access>
+        </Parameter>
+        <Parameter Name="Ret_Val">
+          <Access Scope="LocalVariable">
+            <Symbol>
+              <Component Name="normData" />
+            </Symbol>
+          </Access>
+        </Parameter>
+      </Instruction>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="33">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="40">
+    <StlToken Text="CALL" />
+    <Access Scope="Call">
+      <Instruction Name="SCALE_X">
+        <TemplateValue Name="dest_type" Type="Type">Real</TemplateValue>
+        <TemplateValue Name="src_type" Type="Type">Real</TemplateValue>
+        <Parameter Name="MIN">
+          <Access Scope="LocalVariable">
+            <Symbol>
+              <Component Name="in_SacaleMin" />
+            </Symbol>
+          </Access>
+        </Parameter>
+        <Parameter Name="VALUE">
+          <Access Scope="LocalVariable">
+            <Symbol>
+              <Component Name="normData" />
+            </Symbol>
+          </Access>
+        </Parameter>
+        <Parameter Name="MAX">
+          <Access Scope="LocalVariable">
+            <Symbol>
+              <Component Name="in_ScaleMax" />
+            </Symbol>
+          </Access>
+        </Parameter>
+        <Parameter Name="Ret_Val">
+          <Access Scope="LocalVariable">
+            <Symbol>
+              <Component Name="out_AnalogData" />
+            </Symbol>
+          </Access>
+        </Parameter>
+      </Instruction>
+    </Access>
+  </StlStatement>
+  <StlStatement UId="21">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+  <StlStatement UId="22">
+    <StlToken Text="EMPTY_LINE" />
+  </StlStatement>
+</StatementList></NetworkSource>
+          <ProgrammingLanguage>STL</ProgrammingLanguage>
+        </AttributeList>
+        <ObjectList>
+          <MultilingualText ID="4" CompositionName="Comment">
+            <ObjectList>
+              <MultilingualTextItem ID="5" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+          <MultilingualText ID="6" CompositionName="Title">
+            <ObjectList>
+              <MultilingualTextItem ID="7" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+        </ObjectList>
+      </SW.Blocks.CompileUnit>
+      <MultilingualText ID="8" CompositionName="Title">
+        <ObjectList>
+          <MultilingualTextItem ID="9" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+    </ObjectList>
+  </SW.Blocks.FC>
+</Document>

@@ -183,7 +183,7 @@ public class EndToEndTests : IDisposable
             ("test.L5X", "Rockwell Automation"),
             ("test.export", "CODESYS"),
             ("test.tsproj", "Beckhoff"),
-            ("test.ap17", "Siemens"),
+            ("test.awl", "Siemens"),
             ("test.s7p", "Siemens")
         };
 
@@ -205,6 +205,10 @@ public class EndToEndTests : IDisposable
             else if (filename.EndsWith(".L5X") || filename.EndsWith(".export"))
             {
                 await File.WriteAllTextAsync(testFile, "<?xml version='1.0'?><root/>");
+            }
+            else if (filename.EndsWith(".awl"))
+            {
+                await File.WriteAllTextAsync(testFile, "ORGANIZATION_BLOCK OB 1\nBEGIN\nNETWORK\n      A     I 0.0;\nEND_ORGANIZATION_BLOCK\n");
             }
             else
             {
@@ -231,6 +235,20 @@ public class EndToEndTests : IDisposable
         }
         var parseAcd = async () => await acdParser.ParseAsync(acdFile);
         await parseAcd.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task TiaPortalProjectArchive_ResolvesToSiemensAndExplainsExport()
+    {
+        var testFile = Path.Combine(_tempDirectory, "test.zap17");
+        using (var archive = ZipFile.Open(testFile, ZipArchiveMode.Create))
+            archive.CreateEntry("test.ap17");
+
+        var parser = _parserRegistry.ResolveForFile(testFile);
+        var action = async () => await parser.ParseAsync(testFile);
+
+        parser.Should().BeOfType<SiemensTiaPortalParser>();
+        await action.Should().ThrowAsync<NotSupportedException>().WithMessage("*SimaticML*");
     }
 
     [Fact]

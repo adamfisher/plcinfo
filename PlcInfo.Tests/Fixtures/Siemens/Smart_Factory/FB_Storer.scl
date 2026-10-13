@@ -1,0 +1,101 @@
+﻿FUNCTION_BLOCK "FB_Storer"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      in_manual : Bool;
+      in_manualHorizontalPoint : Real;
+      in_manualVeticalPoint : Real;
+   END_VAR
+
+   VAR_OUTPUT 
+      out_succes : Bool;
+      out_ocupied : Bool;
+   END_VAR
+
+   VAR 
+      horizontal_point : Int;
+      vertical_point : Int;
+      hortizontal_converted { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Real;
+      vertical_converted { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Real;
+      Storer { S7_SetPoint := 'False'} : Array[0..4] of "udt_StoreRow";
+      Storer_box_type : Array[0..4] of "udt_StoreRowBoxType";
+   END_VAR
+
+   VAR_TEMP 
+      status_succes : Bool;
+      status_ocupied : Bool;
+      row : "udt_StoreRow";
+      row_type : "udt_StoreRowBoxType";
+      cnt_for : Int;
+      calculated : Real;
+   END_VAR
+
+
+BEGIN
+	
+	//Se peude operar de forma manual introduccionedo un valor entero, sino se hace atraves del buscador de sitios vacios
+	IF #in_manual = TRUE THEN
+	    
+	    "DB_AQ".outa_VerticalAxis := #in_manualVeticalPoint;
+	    "DB_AQ".outa_HorizontalAxis := #in_manualHorizontalPoint;
+	    
+	    IF #in_manualVeticalPoint <> "FC_RoundDecimals"(in_real := "DB_AI".ina_VerticalAxis, in_decimals := 2) THEN
+	        #status_succes := FALSE;
+	    ELSE
+	        IF #in_manualHorizontalPoint <> "FC_RoundDecimals"(in_real := "DB_AI".ina_HorizontalAxis, in_decimals := 2) THEN
+	            #status_succes := FALSE;
+	        ELSE
+	            #status_succes := TRUE;
+	        END_IF;
+	    END_IF;
+	    
+	ELSE
+	    
+	    //Buscar un hueco en el alamcen, sabe los puntos que tien vacias y busca un priorizando los de abajo
+	   "FC_FindStorePlace"(in_storer:=#Storer,
+	                       out_horizontalPoint=>#horizontal_point,
+	                       out_VerticalPoint=>#vertical_point);
+	   
+	   //Se deve comprovar que el punto este bien seleccionado por el selecionador
+	   #row := #Storer[#vertical_point];
+	   IF #row.places[#horizontal_point] = FALSE THEN
+	        //Se calcular la posicion
+	        #vertical_converted := 0.55; //offset estanteria
+	        FOR #cnt_for := 1 TO #vertical_point DO
+	            #vertical_converted := #vertical_converted + 1; //posicion vertical
+	        END_FOR;
+	        #hortizontal_converted := 1.6; //offset estanteria
+	        FOR #cnt_for := 1 TO #horizontal_point DO
+	            #hortizontal_converted := #hortizontal_converted + 1.5; //posicion horizontal
+	        END_FOR;
+	        //Se ejecutar el movimiento
+	        "DB_AQ".outa_VerticalAxis := "FC_RoundDecimals"(in_real := #vertical_converted, in_decimals := 2);
+	        "DB_AQ".outa_HorizontalAxis := "FC_RoundDecimals"(in_real := #hortizontal_converted, in_decimals := 2);
+	        //Se comprueva el movimiento
+	        IF #vertical_converted <> "FC_RoundDecimals"(in_real := "DB_AI".ina_VerticalAxis, in_decimals := 2) THEN
+	            #status_succes := FALSE;
+	        ELSE
+	            IF #hortizontal_converted <> "FC_RoundDecimals"(in_real := "DB_AI".ina_HorizontalAxis, in_decimals := 2) THEN
+	                #status_succes := FALSE;
+	            ELSE
+	                #status_succes := TRUE;
+	            END_IF;
+	        END_IF;
+	        //Se establece la posicion de la estanteria como llena para que el buscador no la tenga encuenta
+	        #row := #Storer[#vertical_point];
+	        #row.places[#horizontal_point] := TRUE;
+	        #Storer[#vertical_point] := #row;
+	        //Tambien se extrae el primer elemento de la fifo del alamacenadro
+	        "Data".fifo_storer.Entrada.extraccion := TRUE;
+	        "FC_Fifo"("Data".fifo_storer);
+	        "Data".fifo_storer.Entrada.extraccion := FALSE;
+	        #row_type := #Storer_box_type[#vertical_point];
+	        #row_type.places[#horizontal_point] := "Data".fifo_storer.Salidas.elemento;
+	        #Storer_box_type[#vertical_point] := #row_type;
+	    END_IF;
+	    
+	END_IF;
+	
+	#out_succes := #status_succes;
+END_FUNCTION_BLOCK
+
