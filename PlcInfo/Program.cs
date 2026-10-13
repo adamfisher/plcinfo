@@ -1,3 +1,4 @@
+using System.Globalization;
 using CommandLine;
 using PlcInfo.Commands;
 using PlcInfo.Parsing;
@@ -9,6 +10,21 @@ namespace PlcInfo;
 /// </summary>
 class Program
 {
+    /// <summary>
+    /// The command verbs, in the order they appear in help.
+    /// </summary>
+    internal static readonly Type[] CommandTypes =
+    {
+        typeof(SummaryCommand),
+        typeof(StructureCommand),
+        typeof(TagsCommand),
+        typeof(IoCommand),
+        typeof(MetricsCommand),
+        typeof(SearchCommand),
+        typeof(DiffCommand),
+        typeof(ExportCommand)
+    };
+
     /// <summary>
     /// Parses command-line arguments into one of the command verbs.
     /// </summary>
@@ -22,58 +38,58 @@ class Program
             config.CaseInsensitiveEnumValues = true;
         });
 
-        return parser.ParseArguments<
-            SummaryCommand,
-            StructureCommand,
-            TagsCommand,
-            IoCommand,
-            MetricsCommand,
-            SearchCommand,
-            DiffCommand,
-            ExportCommand
-        >(args);
+        return parser.ParseArguments(NormalizeArguments(args), CommandTypes);
     }
+
+    /// <summary>
+    /// Accepts "-h" as a synonym for "--help", as most CLI tools do.
+    /// Arguments after "--" are left untouched.
+    /// </summary>
+    internal static string[] NormalizeArguments(string[] args)
+    {
+        var result = new string[args.Length];
+        var afterDashDash = false;
+        for (int i = 0; i < args.Length; i++)
+        {
+            afterDashDash |= args[i] == "--";
+            result[i] = !afterDashDash && args[i] == "-h" ? "--help" : args[i];
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Creates the registry of all supported project parsers.
+    /// </summary>
+    internal static PlcParserRegistry CreateParserRegistry() => new(new IPlcProjectParser[]
+    {
+        new RockwellL5XParser(),
+        new RockwellAcdParser(),
+        new SiemensStep7Parser(),
+        new SiemensTiaPortalParser(),
+        new CodesysParser(),
+        new TwinCatParser()
+    });
 
     static async Task<int> Main(string[] args)
     {
         // Output is consumed by scripts and diffed in CI, so numbers and dates must
         // not change with the machine's locale (e.g. "12,5" under de-DE).
-        System.Globalization.CultureInfo.DefaultThreadCurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
-        System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
+        CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+        CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
 
-        // Handle --version flag to show full help
-        if (args.Length == 1 && (args[0] == "--version" || args[0] == "-v"))
+        // Ctrl+C cancels the running command; it then exits with 130.
+        using var cancellation = new CancellationTokenSource();
+        Console.CancelKeyPress += (_, e) =>
         {
-            return HelpFormatter.DisplayVersion();
-        }
-
-        // Initialize all parsers
-        var parsers = new List<IPlcProjectParser>
-        {
-            new RockwellL5XParser(),
-            new RockwellAcdParser(),
-            new SiemensStep7Parser(),
-            new SiemensTiaPortalParser(),
-            new CodesysParser(),
-            new TwinCatParser()
+            e.Cancel = true;
+            cancellation.Cancel();
         };
 
-        // Create parser registry
-        var parserRegistry = new PlcParserRegistry(parsers);
-
-        // Parse arguments and execute the appropriate command
+        var parserRegistry = CreateParserRegistry();
         var parserResult = ParseArguments(args);
 
         return await parserResult.MapResult(
-            async (SummaryCommand cmd) => await cmd.Execute(parserRegistry),
-            async (StructureCommand cmd) => await cmd.Execute(parserRegistry),
-            async (TagsCommand cmd) => await cmd.Execute(parserRegistry),
-            async (IoCommand cmd) => await cmd.Execute(parserRegistry),
-            async (MetricsCommand cmd) => await cmd.Execute(parserRegistry),
-            async (SearchCommand cmd) => await cmd.Execute(parserRegistry),
-            async (DiffCommand cmd) => await cmd.Execute(parserRegistry),
-            async (ExportCommand cmd) => await cmd.Execute(parserRegistry),
-            errors => Task.FromResult(HelpFormatter.DisplayHelp(parserResult, errors))
-        );
+            (CommandBase command) => command.Execute(parserRegistry, cancellation.Token),
+            errors => Task.FromResult(HelpFormatter.DisplayHelp(parserResult, errors)));
     }
 }

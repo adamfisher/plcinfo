@@ -1,45 +1,29 @@
 using CommandLine;
-using PlcInfo.Services;
 using PlcInfo.Parsing;
+using PlcInfo.Services;
 
 namespace PlcInfo.Commands;
 
-[Verb("diff", HelpText = "Compare two project files")]
-public class DiffCommand
+[Verb("diff", HelpText = "Compare two projects. Exit status: 0 identical, 1 different, 2 trouble.")]
+public class DiffCommand : CommandBase
 {
-    [Value(0, Required = true, HelpText = "First PLC project file", MetaName = "FILE1")]
+    [Value(0, Required = true, MetaName = "OLD", HelpText = "Original project file.")]
     public string File1 { get; set; } = string.Empty;
 
-    [Value(1, Required = true, HelpText = "Second PLC project file", MetaName = "FILE2")]
+    [Value(1, Required = true, MetaName = "NEW", HelpText = "Changed project file.")]
     public string File2 { get; set; } = string.Empty;
 
-    [Option('f', "format", Required = false, Default = OutputFormat.Text, HelpText = "Output format (text, json, yaml, md)")]
-    public OutputFormat Format { get; set; } = OutputFormat.Text;
+    // Like diff(1): 1 means "differences found", so errors use 2.
+    protected override int ErrorExitCode => ExitCodes.Usage;
 
-    public async Task<int> Execute(IPlcParserRegistry parserRegistry)
+    protected override async Task<int> RunAsync(IPlcParserRegistry parserRegistry, CancellationToken cancellationToken)
     {
-        try
-        {
-            var parser1 = parserRegistry.ResolveForFile(File1);
-            var project1 = await parser1.ParseAsync(File1);
+        var project1 = await LoadProjectAsync(parserRegistry, File1, cancellationToken);
+        var project2 = await LoadProjectAsync(parserRegistry, File2, cancellationToken);
 
-            var parser2 = parserRegistry.ResolveForFile(File2);
-            var project2 = await parser2.ParseAsync(File2);
+        var result = new PlcDiffService().Compare(project1, project2);
+        await WriteResultAsync(Formatter.FormatDiff(result), cancellationToken);
 
-            var diffService = new PlcDiffService();
-            var result = diffService.Compare(project1, project2);
-
-            var formatter = FormatterHelper.GetFormatter(Format);
-            Console.WriteLine(formatter.FormatDiff(result));
-
-            return result.HasDifferences ? 1 : 0;
-        }
-        catch (Exception ex)
-        {
-            // Like diff(1): 0 = identical, 1 = differences, 2 = error, so CI can
-            // tell "changed" apart from "couldn't compare".
-            Console.Error.WriteLine($"Error: {ex.Message}");
-            return 2;
-        }
+        return result.HasDifferences ? ExitCodes.Differences : ExitCodes.Success;
     }
 }

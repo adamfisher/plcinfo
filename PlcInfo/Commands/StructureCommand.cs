@@ -3,23 +3,13 @@ using PlcInfo.Parsing;
 
 namespace PlcInfo.Commands;
 
-[Verb("structure", HelpText = "Display project structure")]
+[Verb("structure", HelpText = "Show tasks, programs, routines and blocks as a tree.")]
 public class StructureCommand : BaseFileCommand
 {
-    public async Task<int> Execute(IPlcParserRegistry parserRegistry)
+    protected override async Task<int> RunAsync(IPlcParserRegistry parserRegistry, CancellationToken cancellationToken)
     {
-        try
-        {
-            var parser = parserRegistry.ResolveForFile(FilePath);
-            var project = await parser.ParseAsync(FilePath);
-            var formatter = FormatterHelper.GetFormatter(Format);
-            Console.WriteLine(formatter.FormatStructure(project));
-            return 0;
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"Error: {ex.Message}");
-            return 1;
-        }
+        var project = await LoadProjectAsync(parserRegistry, FilePath, cancellationToken);
+        await WriteResultAsync(Formatter.FormatStructure(project), cancellationToken);
+        return ExitCodes.Success;
     }
 }

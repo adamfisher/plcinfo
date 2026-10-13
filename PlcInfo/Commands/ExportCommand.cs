@@ -1,65 +1,50 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using CommandLine;
 using PlcInfo.Parsing;
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
 
 namespace PlcInfo.Commands;
 
-[Verb("export", HelpText = "Export project to neutral format")]
-public class ExportCommand
+[Verb("export", HelpText = "Export the full project model in a vendor-neutral format (json or yaml).")]
+public class ExportCommand : BaseFileCommand
 {
-    [Value(0, Required = true, HelpText = "PLC project file path", MetaName = "FILE")]
-    public string FilePath { get; set; } = string.Empty;
+    [Option("compact", Required = false, HelpText = "Write JSON without indentation.")]
+    public bool Compact { get; set; }
 
-    [Option('f', "format", Required = false, Default = "neutral-json", HelpText = "Export format (neutral-json)")]
-    public string ExportFormat { get; set; } = "neutral-json";
-
-    [Option('o', "output", Required = false, HelpText = "Output file path (default: stdout)")]
-    public string? OutputPath { get; set; }
-
-    // Nullable so the option takes a value: a plain bool is a presence-only switch,
-    // which made "--indent false" impossible.
-    [Option('i', "indent", Required = false, HelpText = "Indent JSON output: true or false (default: true)")]
+    // Kept for compatibility with earlier releases; prefer --compact.
+    [Option('i', "indent", Required = false, Hidden = true)]
     public bool? Indent { get; set; }
 
-    public async Task<int> Execute(IPlcParserRegistry parserRegistry)
+    public ExportCommand()
     {
-        try
+        // Export defaults to JSON rather than the human-readable text format.
+        Format = OutputFormat.Json;
+    }
+
+    protected override async Task<int> RunAsync(IPlcParserRegistry parserRegistry, CancellationToken cancellationToken)
+    {
+        var project = await LoadProjectAsync(parserRegistry, FilePath, cancellationToken);
+
+        string content = Format switch
         {
-            var parser = parserRegistry.ResolveForFile(FilePath);
-            var project = await parser.ParseAsync(FilePath);
-
-            if (ExportFormat.Equals("neutral-json", StringComparison.OrdinalIgnoreCase))
+            OutputFormat.Json => JsonSerializer.Serialize(project, new JsonSerializerOptions
             {
-                var options = new JsonSerializerOptions
-                {
-                    WriteIndented = Indent ?? true,
-                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-                };
+                WriteIndented = Indent ?? !Compact,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            }),
+            OutputFormat.Yaml => new SerializerBuilder()
+                .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull)
+                .WithQuotingNecessaryStrings()
+                .Build()
+                .Serialize(project),
+            _ => throw new UsageException($"export: --format must be json or yaml (got '{Format.ToString().ToLowerInvariant()}').")
+        };
 
-                var json = JsonSerializer.Serialize(project, options);
-
-                if (string.IsNullOrEmpty(OutputPath))
-                {
-                    Console.WriteLine(json);
-                }
-                else
-                {
-                    await File.WriteAllTextAsync(OutputPath, json);
-                    Console.WriteLine($"Exported to: {OutputPath}");
-                }
-            }
-            else
-            {
-                Console.Error.WriteLine($"Unsupported export format: {ExportFormat}");
-                return 1;
-            }
-
-            return 0;
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"Error: {ex.Message}");
-            return 1;
-        }
+        await WriteResultAsync(content, cancellationToken);
+        return ExitCodes.Success;
     }
 }

@@ -3,23 +3,13 @@ using PlcInfo.Parsing;
 
 namespace PlcInfo.Commands;
 
-[Verb("io", HelpText = "Display I/O configuration")]
+[Verb("io", HelpText = "Show the I/O configuration: modules and I/O tags.")]
 public class IoCommand : BaseFileCommand
 {
-    public async Task<int> Execute(IPlcParserRegistry parserRegistry)
+    protected override async Task<int> RunAsync(IPlcParserRegistry parserRegistry, CancellationToken cancellationToken)
     {
-        try
-        {
-            var parser = parserRegistry.ResolveForFile(FilePath);
-            var project = await parser.ParseAsync(FilePath);
-            var formatter = FormatterHelper.GetFormatter(Format);
-            Console.WriteLine(formatter.FormatIo(project));
-            return 0;
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"Error: {ex.Message}");
-            return 1;
-        }
+        var project = await LoadProjectAsync(parserRegistry, FilePath, cancellationToken);
+        await WriteResultAsync(Formatter.FormatIo(project), cancellationToken);
+        return ExitCodes.Success;
     }
 }

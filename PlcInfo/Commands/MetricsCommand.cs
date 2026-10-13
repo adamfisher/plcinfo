@@ -4,27 +4,14 @@ using PlcInfo.Services;
 
 namespace PlcInfo.Commands;
 
-[Verb("metrics", HelpText = "Display project metrics")]
+[Verb("metrics", HelpText = "Show code metrics: counts, language and data type distribution, complexity.")]
 public class MetricsCommand : BaseFileCommand
 {
-    public async Task<int> Execute(IPlcParserRegistry parserRegistry)
+    protected override async Task<int> RunAsync(IPlcParserRegistry parserRegistry, CancellationToken cancellationToken)
     {
-        try
-        {
-            var parser = parserRegistry.ResolveForFile(FilePath);
-            var project = await parser.ParseAsync(FilePath);
-
-            var metricsService = new MetricsService();
-            var metrics = metricsService.CalculateMetrics(project);
-
-            var formatter = FormatterHelper.GetFormatter(Format);
-            Console.WriteLine(formatter.FormatMetrics(metrics));
-            return 0;
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"Error: {ex.Message}");
-            return 1;
-        }
+        var project = await LoadProjectAsync(parserRegistry, FilePath, cancellationToken);
+        var metrics = new MetricsService().CalculateMetrics(project);
+        await WriteResultAsync(Formatter.FormatMetrics(metrics), cancellationToken);
+        return ExitCodes.Success;
     }
 }
