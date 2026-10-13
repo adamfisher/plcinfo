@@ -22,7 +22,8 @@ class Program
         typeof(MetricsCommand),
         typeof(SearchCommand),
         typeof(DiffCommand),
-        typeof(ExportCommand)
+        typeof(ExportCommand),
+        typeof(TextconvCommand)
     };
 
     /// <summary>

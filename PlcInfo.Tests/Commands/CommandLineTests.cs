@@ -83,6 +83,20 @@ public class CommandLineTests : IDisposable
         PlcInfo.Program.NormalizeArguments(new[] { "summary", "--", "-h" }).Should().Equal("summary", "--", "-h");
     }
 
+    [Fact]
+    public async Task Textconv_WritesCanonicalTextAndRejectsOtherFormats()
+    {
+        Parse<TextconvCommand>("textconv", "project.L5X");
+
+        var ok = await Run(new TextconvCommand { FilePath = "x.test" }, new StubParser("noisy warning"));
+        ok.ExitCode.Should().Be(ExitCodes.Success);
+        ok.Stdout.Should().StartWith("# plcinfo textconv v1: Test Test");
+        ok.Stderr.Should().BeEmpty("git shows textconv output for every revision; warnings would be noise");
+
+        var json = await Run(new TextconvCommand { FilePath = "x.test", Format = OutputFormat.Json }, new StubParser());
+        json.ExitCode.Should().Be(ExitCodes.Usage);
+    }
+
     // ---- help, version and usage errors ----
 
     [Fact]

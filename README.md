@@ -261,6 +261,49 @@ Standard output carries only the command's result, so it can be piped or redirec
 | `2` | Usage error (unknown command or option, bad option value). For `diff`: any error. |
 | `130` | Interrupted (Ctrl+C) |
 
+## Git integration
+
+PLC exports are large XML files, so `git diff` on them shows markup noise rather than logic changes. plcinfo plugs into git in two ways.
+
+### `git diff`, `git log -p` and code review: textconv
+
+`plcinfo textconv FILE` prints a project as stable, line-oriented text: one line per rung, tag, data type member, network and source line. Volatile data like export timestamps and file paths is left out. Rung numbers are left out too, because Logix renumbers every following rung when one is inserted. Register it as a textconv driver:
+
+```bash
+# Once per machine
+git config --global diff.plcinfo.textconv "plcinfo textconv"
+git config --global diff.plcinfo.cachetextconv true
+
+# Once per repository (commit this file)
+cat >> .gitattributes <<'ATTR'
+*.L5X diff=plcinfo
+*.l5x diff=plcinfo
+ATTR
+```
+
+Now `git diff`, `git log -p project.L5X` and `git show` show logic changes:
+
+```diff
+ MainProgram/MainRoutine rung: NOP();
++MainProgram/MainRoutine rung: XIC(DINT.5)OTE(DINT.8);
+ MainProgram/MainRoutine rung: XIC(DINT.0)OTE(DINT.2);
+-MainProgram/STRoutine 2| DINT := DINT AND ULINT; // Line 2 Comment
++MainProgram/STRoutine 2| DINT := DINT OR ULINT; // Line 2 Comment
+```
+
+Add the same `diff=plcinfo` attribute for any other format plcinfo reads.
+
+### Detailed reports: difftool
+
+For a report with rung numbers and instruction-level summaries, use `plcinfo diff` as a difftool:
+
+```bash
+git config --global difftool.plcinfo.cmd 'plcinfo diff "$LOCAL" "$REMOTE"'
+git difftool --tool=plcinfo --no-prompt HEAD~1 -- project.L5X
+```
+
+`plcinfo diff` exits with `1` when the projects differ. git treats that as normal for diff tools.
+
 ## Quick Start Examples
 
 ### Example 1: Basic Project Analysis
